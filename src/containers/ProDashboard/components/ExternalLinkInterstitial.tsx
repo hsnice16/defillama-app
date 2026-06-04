@@ -60,7 +60,7 @@ export function ExternalLinkInterstitial({ href, onClose, onAllowPermanently }: 
 						href={href ?? '#'}
 						target="_blank"
 						rel="noopener noreferrer nofollow ugc"
-						onClick={onClose}
+						onClick={() => setTimeout(onClose, 0)}
 						className="rounded-md bg-(--old-blue) px-4 py-2 text-sm font-medium text-white transition-colors hover:opacity-90"
 					>
 						Continue
