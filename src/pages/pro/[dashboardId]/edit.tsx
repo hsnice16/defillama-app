@@ -20,9 +20,8 @@ const getServerSidePropsHandler: GetServerSideProps = async (context) => {
 
 	const authToken = getAuthTokenFromRequest(context.req)
 	if (!authToken) {
-		return {
-			redirect: { destination: `/pro/${dashboardId}`, permanent: false }
-		}
+		context.res.statusCode = 401
+		return { props: { dashboardId } }
 	}
 
 	try {
@@ -42,7 +41,8 @@ export default function DashboardEditPage({ dashboardId }: InferGetServerSidePro
 		<Layout
 			title="DefiLlama Pro - Edit Dashboard"
 			description="Edit your custom DeFi analytics dashboard on DefiLlama Pro."
-			canonicalUrl={`/pro/${dashboardId}/edit`}
+			canonicalUrl={null}
+			noIndex
 		>
 			<ProDashboardAPIProvider
 				initialDashboardId={dashboardId}
@@ -85,7 +85,7 @@ function DashboardEditPageContent({ dashboardId }: { dashboardId: string }) {
 	const isLoading = loaders.userLoading || isValidating || isLoadingDashboard
 
 	if (isLoading) {
-		return <ProDashboardLoader />
+		return <ProDashboardLoader heading="Edit dashboard" />
 	}
 
 	if (!currentDashboard && loadError?.status === 401) {

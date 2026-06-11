@@ -1,23 +1,36 @@
 import * as Ariakit from '@ariakit/react'
+import type { GetServerSideProps, InferGetServerSidePropsType } from 'next'
 import { useRouter } from 'next/router'
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { Icon } from '~/components/Icon'
+import { FEATURES_SERVER } from '~/constants'
 import { AppMetadataProvider } from '~/containers/ProDashboard/AppMetadataContext'
+import { AuthorProfileStrip } from '~/containers/ProDashboard/components/AuthorProfileStrip'
 import type { ComparisonPreset } from '~/containers/ProDashboard/components/ComparisonWizard/types'
 import { DashboardDiscovery } from '~/containers/ProDashboard/components/DashboardDiscovery'
 import { DashboardList } from '~/containers/ProDashboard/components/DashboardList'
 import { DashboardPaywallModal, type PaywallReason } from '~/containers/ProDashboard/components/DashboardPaywallModal'
+import { FollowingShelves } from '~/containers/ProDashboard/components/FollowingShelves'
 import { LikedDashboards } from '~/containers/ProDashboard/components/LikedDashboards'
+import { MyProfileTab } from '~/containers/ProDashboard/components/MyProfileTab'
 import { ProDashboardLoader } from '~/containers/ProDashboard/components/ProDashboardLoader'
 import { useFreeTierStatus, useMyDashboards } from '~/containers/ProDashboard/hooks'
+import {
+	DISCOVERY_CATEGORIES,
+	type DiscoveryCategoryResponse,
+	type DiscoveryCategoriesInitialData
+} from '~/containers/ProDashboard/hooks/useDiscoveryCategories'
 import {
 	ProDashboardAPIProvider,
 	useProDashboardDashboard,
 	useProDashboardUI
 } from '~/containers/ProDashboard/ProDashboardAPIContext'
+import { getAuthTokenFromRequest } from '~/containers/ProDashboard/server/auth'
+import type { Dashboard } from '~/containers/ProDashboard/services/DashboardAPI'
 import { useAuthContext } from '~/containers/Subscription/auth'
 import { setSignupSource } from '~/containers/Subscription/signupSource'
 import Layout from '~/layout'
+import { withServerSidePropsTelemetry } from '~/utils/telemetry'
 const CreateDashboardPicker = lazy(() =>
 	import('~/containers/ProDashboard/components/CreateDashboardPicker').then((m) => ({
 		default: m.CreateDashboardPicker
@@ -29,7 +42,130 @@ const GenerateDashboardModal = lazy(() =>
 	}))
 )
 
-function ProPageContent() {
+const PUBLIC_PRO_CACHE_CONTROL = 'public, s-maxage=300, stale-while-revalidate=3600'
+const PRIVATE_PRO_CACHE_CONTROL = 'private, no-cache, no-store, must-revalidate'
+const DISCOVERY_FETCH_TIMEOUT_MS = 3_000
+
+type ProPageProps = {
+	initialDiscoveryCategories: DiscoveryCategoriesInitialData
+}
+
+function compactDiscoveryAuthor(author: Dashboard['author']): Dashboard['author'] {
+	if (
+		!author?.slug ||
+		!author.displayName ||
+		typeof author.createdAt !== 'string' ||
+		typeof author.updatedAt !== 'string'
+	) {
+		return undefined
+	}
+	return {
+		slug: author.slug,
+		displayName: author.displayName,
+		bio: author.bio ?? null,
+		avatarUrl: author.avatarUrl ?? null,
+		socials: author.socials || {},
+		createdAt: author.createdAt,
+		updatedAt: author.updatedAt
+	}
+}
+
+function compactDiscoveryDashboard(dashboard: Dashboard): Dashboard {
+	const author = compactDiscoveryAuthor(dashboard.author)
+	return {
+		id: dashboard.id,
+		visibility: dashboard.visibility,
+		tags: Array.isArray(dashboard.tags) ? dashboard.tags.filter((tag) => typeof tag === 'string' && tag.trim()) : [],
+		description: typeof dashboard.description === 'string' ? dashboard.description : '',
+		viewCount: dashboard.viewCount,
+		likeCount: dashboard.likeCount,
+		liked: dashboard.liked,
+		...(author ? { author } : {}),
+		created: dashboard.created,
+		updated: dashboard.updated,
+		editedAt: dashboard.editedAt,
+		data: {
+			dashboardName: dashboard.data?.dashboardName || 'Untitled Dashboard',
+			items: (dashboard.data?.items ?? []).map((item: any, index) => ({
+				id: typeof item?.id === 'string' ? item.id : `item-${index}`,
+				kind: typeof item?.kind === 'string' ? item.kind : 'text'
+			})) as Dashboard['data']['items']
+		}
+	} as Dashboard
+}
+
+function compactDiscoveryResponse(response: DiscoveryCategoryResponse): DiscoveryCategoryResponse {
+	return {
+		...response,
+		items: response.items.map(compactDiscoveryDashboard)
+	}
+}
+
+function emptyDiscoveryResponse(category: (typeof DISCOVERY_CATEGORIES)[number]): DiscoveryCategoryResponse {
+	return {
+		items: [],
+		page: 1,
+		perPage: category.limit,
+		totalItems: 0,
+		totalPages: 0
+	}
+}
+
+async function fetchDiscoveryCategory(
+	category: (typeof DISCOVERY_CATEGORIES)[number]
+): Promise<DiscoveryCategoryResponse> {
+	const controller = new AbortController()
+	const timeout = setTimeout(() => controller.abort(), DISCOVERY_FETCH_TIMEOUT_MS)
+	const params = new URLSearchParams({
+		visibility: 'public',
+		sortBy: category.sortBy,
+		page: '1',
+		limit: String(category.limit)
+	})
+	if (category.timeFrame) params.set('timeFrame', category.timeFrame)
+
+	try {
+		const response = await fetch(`${FEATURES_SERVER}/dashboards/search?${params.toString()}`, {
+			signal: controller.signal
+		})
+		if (!response.ok) throw new Error(`features-server responded with ${response.status}`)
+		return compactDiscoveryResponse((await response.json()) as DiscoveryCategoryResponse)
+	} finally {
+		clearTimeout(timeout)
+	}
+}
+
+async function fetchInitialDiscoveryCategories(): Promise<DiscoveryCategoriesInitialData> {
+	const results = await Promise.allSettled(
+		DISCOVERY_CATEGORIES.map(async (category) => ({
+			key: category.key,
+			data: await fetchDiscoveryCategory(category).catch(() => emptyDiscoveryResponse(category))
+		}))
+	)
+	const categories: DiscoveryCategoriesInitialData = {}
+
+	for (const result of results) {
+		if (result.status === 'fulfilled') {
+			categories[result.value.key] = result.value.data
+		}
+	}
+
+	return categories
+}
+
+const getServerSidePropsHandler: GetServerSideProps<ProPageProps> = async ({ req, res }) => {
+	const authToken = getAuthTokenFromRequest(req)
+	res.setHeader('Cache-Control', authToken ? PRIVATE_PRO_CACHE_CONTROL : PUBLIC_PRO_CACHE_CONTROL)
+	res.setHeader('Vary', 'Cookie, Authorization')
+
+	return {
+		props: {
+			initialDiscoveryCategories: await fetchInitialDiscoveryCategories()
+		}
+	}
+}
+
+function ProPageContent({ initialDiscoveryCategories }: ProPageProps) {
 	const { isAuthenticated, loaders, hasActiveSubscription } = useAuthContext()
 
 	if (loaders.userLoading) {
@@ -39,7 +175,7 @@ function ProPageContent() {
 				description="Build custom no-code DeFi dashboards with DefiLlama Pro. Combine TVL, fees, volume, and protocol metrics into personalized analytics views."
 				canonicalUrl={`/pro`}
 			>
-				<ProDashboardLoader />
+				<ProDashboardLoader heading="Custom Dashboards" />
 			</Layout>
 		)
 	}
@@ -50,12 +186,16 @@ function ProPageContent() {
 			description="Build custom no-code DeFi dashboards with DefiLlama Pro. Combine TVL, fees, volume, and protocol metrics into personalized analytics views."
 			canonicalUrl={`/pro`}
 		>
-			<ProContent hasActiveSubscription={hasActiveSubscription} isAuthenticated={isAuthenticated} />
+			<ProContent
+				hasActiveSubscription={hasActiveSubscription}
+				isAuthenticated={isAuthenticated}
+				initialDiscoveryCategories={initialDiscoveryCategories}
+			/>
 		</Layout>
 	)
 }
 
-const tabs = ['my-dashboards', 'discover', 'favorites'] as const
+const tabs = ['my-dashboards', 'discover', 'favorites', 'following', 'profile'] as const
 type ProTab = (typeof tabs)[number]
 
 const tabClassName =
@@ -76,10 +216,12 @@ function getDashboardPagesToShow(selectedPage: number, totalPages: number): numb
 
 function ProContent({
 	hasActiveSubscription,
-	isAuthenticated
+	isAuthenticated,
+	initialDiscoveryCategories
 }: {
 	hasActiveSubscription: boolean
 	isAuthenticated: boolean
+	initialDiscoveryCategories: DiscoveryCategoriesInitialData
 }) {
 	const router = useRouter()
 	const { tab } = router.query
@@ -144,10 +286,10 @@ function ProContent({
 		const items = router.query.items
 		if (comparison !== 'protocols' || typeof items !== 'string') return
 		if (comparisonPreset) return
-		const parsedItems = items
-			.split(',')
-			.map((item) => item.trim())
-			.filter(Boolean)
+		const parsedItems = items.split(',').flatMap((item) => {
+			const trimmed = item.trim()
+			return trimmed ? [trimmed] : []
+		})
 		const { comparison: _comparison, items: _items, step: _step, ...rest } = router.query
 		let cancelled = false
 		if (parsedItems.length > 0) {
@@ -209,10 +351,37 @@ function ProContent({
 							Favorites
 						</button>
 					) : null}
+					{isAuthenticated ? (
+						<button
+							type="button"
+							role="tab"
+							aria-selected={activeTab === 'following'}
+							onClick={() => switchTab('following')}
+							data-active={activeTab === 'following'}
+							data-umami-event="dashboard-open-following"
+							className={tabClassName}
+						>
+							Following
+						</button>
+					) : null}
+					{isAuthenticated ? (
+						<button
+							type="button"
+							role="tab"
+							aria-selected={activeTab === 'profile'}
+							onClick={() => switchTab('profile')}
+							data-active={activeTab === 'profile'}
+							data-umami-event="dashboard-open-my-profile"
+							className={tabClassName}
+						>
+							My Profile
+						</button>
+					) : null}
 				</div>
 				<div className="ml-auto flex flex-wrap justify-end gap-2">
 					{
 						<button
+							type="button"
 							onClick={
 								!isAuthenticated
 									? () => router.push('/pro/preview')
@@ -228,6 +397,7 @@ function ProContent({
 						</button>
 					}
 					<button
+						type="button"
 						onClick={
 							!isAuthenticated
 								? () => router.push('/pro/preview')
@@ -250,7 +420,7 @@ function ProContent({
 				aria-hidden={activeTab !== 'discover'}
 				className={activeTab === 'discover' ? 'flex flex-col gap-4' : 'hidden'}
 			>
-				<DashboardDiscovery />
+				<DashboardDiscovery initialCategories={initialDiscoveryCategories} />
 			</div>
 
 			{isAuthenticated ? (
@@ -259,6 +429,8 @@ function ProContent({
 					aria-hidden={activeTab !== 'my-dashboards'}
 					className={activeTab === 'my-dashboards' ? 'flex flex-col gap-4' : 'hidden'}
 				>
+					<AuthorProfileStrip />
+
 					{!isLoadingMyDashboards ? (
 						<p className="text-xs text-(--text-label)">
 							Showing {myDashboards.length} of {myDashboardsTotalItems} dashboards
@@ -277,6 +449,7 @@ function ProContent({
 					{myDashboardsTotalPages > 1 ? (
 						<div className="flex flex-nowrap items-center justify-center gap-2 overflow-x-auto">
 							<button
+								type="button"
 								onClick={() => goToPage(1)}
 								disabled={selectedPage < 3}
 								className="h-[32px] min-w-[32px] rounded-md px-2 py-1.5 text-(--text-label) disabled:hidden"
@@ -285,6 +458,7 @@ function ProContent({
 							</button>
 
 							<button
+								type="button"
 								onClick={() => goToPage(Math.max(1, selectedPage - 1))}
 								disabled={selectedPage === 1}
 								className="h-[32px] min-w-[32px] rounded-md px-2 py-1.5 text-(--text-label) disabled:hidden"
@@ -296,6 +470,7 @@ function ProContent({
 								const isActive = selectedPage === pageNum
 								return (
 									<button
+										type="button"
 										key={`my-dashboard-page-${pageNum}`}
 										onClick={() => goToPage(pageNum)}
 										data-active={isActive}
@@ -307,6 +482,7 @@ function ProContent({
 							})}
 
 							<button
+								type="button"
 								onClick={() => goToPage(Math.min(myDashboardsTotalPages, selectedPage + 1))}
 								disabled={selectedPage === myDashboardsTotalPages}
 								className="h-[32px] min-w-[32px] rounded-md px-2 py-1.5 text-(--text-label) disabled:hidden"
@@ -314,6 +490,7 @@ function ProContent({
 								<Icon name="chevron-right" height={16} width={16} />
 							</button>
 							<button
+								type="button"
 								onClick={() => goToPage(myDashboardsTotalPages)}
 								disabled={selectedPage > myDashboardsTotalPages - 2}
 								className="h-[32px] min-w-[32px] rounded-md px-2 py-1.5 text-(--text-label) disabled:hidden"
@@ -332,6 +509,22 @@ function ProContent({
 					className={activeTab === 'favorites' ? 'flex flex-col gap-4' : 'hidden'}
 				>
 					<LikedDashboards />
+				</div>
+			) : null}
+
+			{isAuthenticated ? (
+				<div
+					role="tabpanel"
+					aria-hidden={activeTab !== 'following'}
+					className={activeTab === 'following' ? 'flex flex-col gap-4' : 'hidden'}
+				>
+					<FollowingShelves />
+				</div>
+			) : null}
+
+			{isAuthenticated && activeTab === 'profile' ? (
+				<div role="tabpanel" className="flex flex-col gap-6">
+					<MyProfileTab />
 				</div>
 			) : null}
 
@@ -362,12 +555,16 @@ function ProContent({
 	)
 }
 
-export default function HomePage() {
+export default function HomePage({
+	initialDiscoveryCategories
+}: InferGetServerSidePropsType<typeof getServerSideProps>) {
 	return (
 		<AppMetadataProvider>
 			<ProDashboardAPIProvider>
-				<ProPageContent />
+				<ProPageContent initialDiscoveryCategories={initialDiscoveryCategories} />
 			</ProDashboardAPIProvider>
 		</AppMetadataProvider>
 	)
 }
+
+export const getServerSideProps = withServerSidePropsTelemetry('/pro', getServerSidePropsHandler)

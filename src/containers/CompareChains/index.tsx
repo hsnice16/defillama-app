@@ -1,18 +1,21 @@
+import * as Ariakit from '@ariakit/react'
 import { useQueries } from '@tanstack/react-query'
 import { useRouter } from 'next/router'
 import type { NextRouter } from 'next/router'
 import * as React from 'react'
 import type { IMultiSeriesChart2Props } from '~/components/ECharts/types'
 import { ensureChronologicalRows } from '~/components/ECharts/utils'
+import { Icon } from '~/components/Icon'
 import { LocalLoader } from '~/components/Loaders'
 import { MultiSelectCombobox } from '~/components/Select/MultiSelectCombobox'
 import { Select } from '~/components/Select/Select'
+import type { IAdapterChainOverview, IAdapterProtocolOverview } from '~/containers/AdapterMetrics/types'
 import { Stats } from '~/containers/ChainOverview/Stats'
 import type { IChainOverviewData } from '~/containers/ChainOverview/types'
-import type { IAdapterChainOverview, IAdapterProtocolOverview } from '~/containers/DimensionAdapters/types'
-import { TVL_SETTINGS_KEYS, useLocalStorageSettingsManager } from '~/contexts/LocalStorage'
-import { getNDistinctColors, getPercentChange, getPrevTvlFromChart } from '~/utils'
+import { useLocalStorageSettingsManager } from '~/contexts/LocalStorage'
+import { getNDistinctColors } from '~/utils'
 import { fetchJson } from '~/utils/async'
+import { buildCompareChainsTvlChartState, type CompareChainsTvlChartState } from './tvlChart'
 
 const MultiSeriesChart2 = React.lazy(
 	() => import('~/components/ECharts/MultiSeriesChart2')
@@ -78,7 +81,8 @@ const useCompare = ({ chains = [] }: { chains?: string[] }) => {
 
 	return {
 		data: data.map((r) => r?.data ?? null),
-		isLoading: data.some((r) => r.isLoading)
+		isLoading: data.some((r) => r.isLoading),
+		failedChains: data.flatMap((r, index) => (r.error ? [chains[index]] : []))
 	}
 }
 
@@ -193,7 +197,9 @@ export function CompareChains({ chains }: { chains: ChainOption[] }) {
 	const router = useRouter()
 	const chainsQuery = router.query?.chains
 
-	const { data, isLoading } = useCompare({ chains: router.query?.chains ? [router.query?.chains].flat() : [] })
+	const { data, isLoading, failedChains } = useCompare({
+		chains: router.query?.chains ? [router.query?.chains].flat() : []
+	})
 
 	const selectedChains = React.useMemo(() => {
 		return [chainsQuery]
@@ -205,10 +211,10 @@ export function CompareChains({ chains }: { chains: ChainOption[] }) {
 	const selectedChainValues = React.useMemo(() => selectedChains.map((chain) => chain.value), [selectedChains])
 
 	const tvlCharts = React.useMemo(() => {
-		const charts: Record<string, TvlChartResult> = {}
+		const charts: Record<string, CompareChainsTvlChartState> = {}
 		for (const chainData of data) {
 			if (!chainData?.chainOverviewData?.tvlChart?.length) continue
-			charts[chainData.chain] = formatTvlChart({
+			charts[chainData.chain] = buildCompareChainsTvlChartState({
 				tvlChart: chainData.chainOverviewData.tvlChart,
 				tvlSettings,
 				extraTvlCharts: chainData.chainOverviewData.extraTvlCharts
@@ -250,7 +256,7 @@ export function CompareChains({ chains }: { chains: ChainOption[] }) {
 							<LocalLoader />
 						</div>
 					) : (
-						<div className="rounded-md border border-(--cards-border) bg-(--cards-bg)">
+						<div className="relative rounded-md border border-(--cards-border) bg-(--cards-bg)">
 							<React.Suspense fallback={<div className="min-h-[398px]" />}>
 								<MultiSeriesChart2
 									dataset={chartData.dataset}
@@ -264,6 +270,7 @@ export function CompareChains({ chains }: { chains: ChainOption[] }) {
 									}}
 								/>
 							</React.Suspense>
+							<FailedCompareChainsPopover failedChains={failedChains} />
 						</div>
 					)}
 
@@ -289,68 +296,34 @@ export function CompareChains({ chains }: { chains: ChainOption[] }) {
 	)
 }
 
-type TvlChartResult = {
-	finalTvlChart: Array<[number, number]>
-	totalValueUSD: number | null
-	valueChange24hUSD: number | null
-	change24h: number | null
-	isGovTokensEnabled?: boolean
-}
-
-const formatTvlChart = ({
-	tvlChart,
-	tvlSettings,
-	extraTvlCharts
-}: {
-	tvlChart: IChainOverviewData['tvlChart']
-	tvlSettings: Record<string, boolean>
-	extraTvlCharts: IChainOverviewData['extraTvlCharts']
-}): TvlChartResult => {
-	const toggledTvlSettings = TVL_SETTINGS_KEYS.filter((key) => tvlSettings[key])
-
-	if (toggledTvlSettings.length === 0) {
-		const totalValueUSD = getPrevTvlFromChart(tvlChart, 0)
-		const tvlPrevDay = getPrevTvlFromChart(tvlChart, 1)
-		const valueChange24hUSD = totalValueUSD != null && tvlPrevDay != null ? totalValueUSD - tvlPrevDay : null
-		const change24h = getPercentChange(totalValueUSD, tvlPrevDay)
-		return { finalTvlChart: tvlChart, totalValueUSD, valueChange24hUSD, change24h }
+function FailedCompareChainsPopover({ failedChains }: { failedChains: string[] }) {
+	if (failedChains.length === 0) {
+		return null
 	}
 
-	const toggledTvlSettingsSet = new Set(toggledTvlSettings)
-
-	const extraCharts = extraTvlCharts as Record<string, Record<string, number> | undefined>
-	const store: Record<string, number> = {}
-	for (const [date, tvl] of tvlChart) {
-		let sum = tvl
-		for (const toggledTvlSetting of toggledTvlSettings) {
-			sum += extraCharts[toggledTvlSetting]?.[date] ?? 0
-		}
-		store[date] = sum
-	}
-
-	// if liquidstaking and doublecounted are toggled, we need to subtract the overlapping tvl so you don't add twice
-	const dates: string[] = []
-	for (const date in store) {
-		dates.push(date)
-	}
-	if (toggledTvlSettingsSet.has('liquidstaking') && toggledTvlSettingsSet.has('doublecounted')) {
-		for (const date of dates) {
-			store[date] -= extraTvlCharts['dcAndLsOverlap']?.[date] ?? 0
-		}
-	}
-
-	const finalTvlChart: Array<[number, number]> = []
-	dates.sort((a, b) => Number(a) - Number(b))
-	for (const date of dates) {
-		finalTvlChart.push([+date, store[date]])
-	}
-
-	const totalValueUSD = getPrevTvlFromChart(finalTvlChart, 0)
-	const tvlPrevDay = getPrevTvlFromChart(finalTvlChart, 1)
-	const valueChange24hUSD = totalValueUSD != null && tvlPrevDay != null ? totalValueUSD - tvlPrevDay : null
-	const change24h = getPercentChange(totalValueUSD, tvlPrevDay)
-	const isGovTokensEnabled = !!tvlSettings?.govtokens
-	return { finalTvlChart, totalValueUSD, valueChange24hUSD, change24h, isGovTokensEnabled }
+	return (
+		<Ariakit.PopoverProvider>
+			<Ariakit.PopoverDisclosure className="absolute right-2 bottom-2 z-10 flex items-center justify-center rounded-full border border-(--cards-border) bg-(--bg-main) p-1.5 text-(--error) hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg)">
+				<Icon name="alert-triangle" className="size-3.5" />
+				<span className="sr-only">Show failed chain APIs</span>
+			</Ariakit.PopoverDisclosure>
+			<Ariakit.Popover
+				unmountOnHide
+				hideOnInteractOutside
+				gutter={6}
+				className="z-10 mr-1 flex max-h-[calc(100dvh-80px)] w-[min(calc(100vw-16px),300px)] flex-col gap-1 overflow-auto overscroll-contain rounded-md border border-[hsl(204,20%,88%)] bg-(--bg-main) p-2 text-xs dark:border-[hsl(204,3%,32%)]"
+			>
+				<p className="font-medium text-(--error)">Failed to load data for:</p>
+				<ul className="pl-4">
+					{failedChains.map((chain) => (
+						<li key={chain} className="list-disc">
+							{chain}
+						</li>
+					))}
+				</ul>
+			</Ariakit.Popover>
+		</Ariakit.PopoverProvider>
+	)
 }
 
 function useChainsChartFilterState() {

@@ -366,6 +366,7 @@ interface MetricDefinition {
 interface MetricConfig {
 	total30d?: number | null
 	total1y?: number | null
+	annualized1y?: number | null
 	total7d?: number | null
 	total24h?: number | null
 	totalAllTime?: number | null
@@ -413,7 +414,7 @@ const buildMetrics = (
 		}
 	} else {
 		if (data.total30d != null) {
-			const annualizedValue = data.total1y != null ? data.total1y : data.total30d * ANNUALIZATION_FACTOR
+			const annualizedValue = data.annualized1y != null ? data.annualized1y : data.total30d * ANNUALIZATION_FACTOR
 			metrics.push({
 				name: `${label} (Annualized)`,
 				tooltipContent: defs?.annualized,
@@ -553,30 +554,30 @@ function Earnings(props: IKeyMetricsProps) {
 	const adjustedRevenue = getAdjustedTotals(revenue, props.bribeRevenue, props.tokenTax, extraTvlsEnabled)
 
 	const earnings24h =
-		adjustedRevenue && revenue?.total24h != null && incentivesData?.emissions24h != null
+		adjustedRevenue?.total24h != null && incentivesData?.emissions24h != null
 			? adjustedRevenue.total24h - incentivesData.emissions24h
 			: null
 	const earnings7d =
-		adjustedRevenue && revenue?.total7d != null && incentivesData?.emissions7d != null
+		adjustedRevenue?.total7d != null && incentivesData?.emissions7d != null
 			? adjustedRevenue.total7d - incentivesData.emissions7d
 			: null
 	const earnings30d =
-		adjustedRevenue && revenue?.total30d != null && incentivesData?.emissions30d != null
+		adjustedRevenue?.total30d != null && incentivesData?.emissions30d != null
 			? adjustedRevenue.total30d - incentivesData.emissions30d
 			: null
-	const earnings1y =
-		adjustedRevenue?.total1y != null && incentivesData?.emissions1y != null
-			? adjustedRevenue.total1y - incentivesData.emissions1y
+	const earningsAnnualized1y =
+		adjustedRevenue?.annualized1y != null && incentivesData?.emissions1y != null
+			? adjustedRevenue.annualized1y - incentivesData.emissions1y
 			: null
 	const earningsAllTime =
-		adjustedRevenue && revenue?.totalAllTime != null && incentivesData?.emissionsAllTime != null
+		adjustedRevenue?.totalAllTime != null && incentivesData?.emissionsAllTime != null
 			? adjustedRevenue.totalAllTime - incentivesData.emissionsAllTime
 			: null
 
 	const metrics = []
 
 	if (earnings30d != null) {
-		const annualizedEarnings = earnings1y != null ? earnings1y : earnings30d * ANNUALIZATION_FACTOR
+		const annualizedEarnings = earningsAnnualized1y != null ? earningsAnnualized1y : earnings30d * ANNUALIZATION_FACTOR
 		metrics.push({
 			name: 'Earnings (Annualized)',
 			tooltipContent: definitions.earnings.protocol.annualized,

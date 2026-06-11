@@ -1,13 +1,15 @@
 import * as Ariakit from '@ariakit/react'
 import { useRouter } from 'next/router'
-import { useEffect, useState } from 'react'
 import { NewsletterSignup } from '~/components/Newsletter/NewsletterSignup'
+import { DashboardAuthorProfileCard } from '~/containers/Authors/DashboardAuthorProfileCard'
 import { useAuthContext } from '~/containers/Subscription/auth'
 import { SignInModal } from '~/containers/Subscription/SignInModal'
 import { useIsClient } from '~/hooks/useIsClient'
 import { AuthenticationCard } from './AuthenticationCard'
+import { ReferralCard } from './ReferralCard'
 import { SettingsCard } from './SettingsCard'
 import { SubscriptionSection } from './SubscriptionSection'
+import { TeamInviteLanding } from './Team/TeamInviteLanding'
 import { TeamTab } from './Team/TeamTab'
 import { UserHeader } from './UserHeader'
 import { isWalletEmail, truncateAddress } from './utils'
@@ -18,25 +20,20 @@ export function ManageAccount() {
 	const { user, logout, isAuthenticated, loaders } = useAuthContext()
 
 	const queryTab = Array.isArray(router.query.tab) ? router.query.tab[0] : router.query.tab
-	const [selectedTabId, setSelectedTabId] = useState<string>('account')
-
-	// Sync tab state from URL (handles initial load + back/forward navigation)
-	useEffect(() => {
-		setSelectedTabId(queryTab === 'team' ? 'team' : 'account')
-	}, [queryTab])
+	const inviteToken = Array.isArray(router.query.token) ? router.query.token[0] : router.query.token
+	const selectedTabId = queryTab === 'team' || queryTab === 'profile' ? queryTab : 'account'
 
 	const tabStore = Ariakit.useTabStore({
 		selectedId: selectedTabId,
 		setSelectedId: (id) => {
 			if (!id) return
-			setSelectedTabId(id)
 			const { tab: _ignored, ...rest } = router.query
 			const nextQuery = id === 'account' ? rest : { ...rest, tab: id }
 			void router.replace({ pathname: router.pathname, query: nextQuery }, undefined, { shallow: true })
 		}
 	})
 
-	if (!isClient || loaders.userLoading) {
+	if (!isClient || loaders.userLoading || !router.isReady) {
 		return (
 			<div className="flex h-64 items-center justify-center">
 				<div className="size-8 animate-spin rounded-full border-2 border-(--sub-brand-primary) border-t-transparent" />
@@ -45,6 +42,11 @@ export function ManageAccount() {
 	}
 
 	if (!isAuthenticated || !user) {
+		// Team invite link opened by a logged-out (possibly unregistered) user
+		if (queryTab === 'team' && inviteToken) {
+			return <TeamInviteLanding />
+		}
+
 		return (
 			<div className="flex flex-col items-center gap-6 py-16">
 				<img src="/assets/account_avatar.png" alt="" className="size-16 rounded-full" />
@@ -91,11 +93,22 @@ export function ManageAccount() {
 					>
 						Team
 					</Ariakit.Tab>
+					<Ariakit.Tab
+						id="profile"
+						className={`pb-2.5 text-sm font-semibold transition-colors ${
+							selectedTabId === 'profile'
+								? 'border-b-2 border-(--sub-brand-primary) text-(--sub-brand-primary)'
+								: 'text-(--sub-text-muted) hover:text-(--sub-ink-primary) dark:hover:text-white'
+						}`}
+					>
+						Profile
+					</Ariakit.Tab>
 				</Ariakit.TabList>
 
 				<Ariakit.TabPanel tabId="account">
 					<div className="flex flex-col gap-3">
 						<AuthenticationCard />
+						<ReferralCard />
 						<SettingsCard />
 						<NewsletterSignup layout="card" />
 						<SubscriptionSection />
@@ -104,6 +117,10 @@ export function ManageAccount() {
 
 				<Ariakit.TabPanel tabId="team">
 					<TeamTab />
+				</Ariakit.TabPanel>
+
+				<Ariakit.TabPanel tabId="profile">
+					<DashboardAuthorProfileCard />
 				</Ariakit.TabPanel>
 			</Ariakit.TabProvider>
 		</div>

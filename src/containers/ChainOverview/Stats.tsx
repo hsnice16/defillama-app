@@ -40,6 +40,7 @@ export function Stats(props: IStatsProps) {
 	const [darkMode] = useDarkModeManager()
 
 	const [tvlSettings] = useLocalStorageSettingsManager('tvl')
+	const [feesSettings] = useLocalStorageSettingsManager('fees')
 
 	const { isAuthenticated } = useAuthContext()
 
@@ -96,6 +97,7 @@ export function Stats(props: IStatsProps) {
 			tvlChartSummary: props.tvlChartSummary,
 			extraTvlCharts: props.extraTvlCharts,
 			tvlSettings,
+			feesSettings,
 			chainGeckoId,
 			toggledCharts,
 			groupBy
@@ -202,9 +204,11 @@ export function Stats(props: IStatsProps) {
 				<KeyMetrics
 					metadata={props.metadata}
 					stablecoins={props.stablecoins}
+					rwaActiveMcap={props.rwaActiveMcap}
 					chainStablecoins={props.chainStablecoins}
 					chainFees={props.chainFees}
 					chainRevenue={props.chainRevenue}
+					feeExtras={props.feeExtras}
 					chainIncentives={props.chainIncentives}
 					appRevenue={props.appRevenue}
 					appFees={props.appFees}

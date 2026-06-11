@@ -1,13 +1,14 @@
+import { fetchAdapterChainMetrics } from '~/containers/AdapterMetrics/api'
+import type { IAdapterChainMetrics } from '~/containers/AdapterMetrics/api.types'
+import { getDimensionAdapterOverviewOfAllChains } from '~/containers/AdapterMetrics/queries'
 import { fetchChainsAssets } from '~/containers/BridgedTVL/api'
 import type { RawChainsAssetsResponse } from '~/containers/BridgedTVL/api.types'
 import { fetchChainsByCategory } from '~/containers/Chains/api'
-import { fetchAdapterChainMetrics } from '~/containers/DimensionAdapters/api'
-import type { IAdapterChainMetrics } from '~/containers/DimensionAdapters/api.types'
-import { getDimensionAdapterOverviewOfAllChains } from '~/containers/DimensionAdapters/queries'
 import { fetchStablecoinAssetsApi } from '~/containers/Stablecoins/api'
 import { TVL_SETTINGS_KEYS } from '~/contexts/LocalStorage'
 import { getNDistinctColors, slug } from '~/utils'
 import type { IChainMetadata } from '~/utils/metadata/types'
+import { shouldSubtractTvlOverlapSeries } from '~/utils/tvlOverlap'
 import { normalizeChainsBaseTvlValue, removeStaleChainExtraTvlEntries } from './tvl'
 import type { IChainsByCategory, IChainsByCategoryData } from './types'
 
@@ -48,7 +49,7 @@ function buildChainsByCategoryChartData({
 			includedTvlTypes.add(key)
 		}
 	}
-	if (includedTvlTypes.has('doublecounted') && includedTvlTypes.has('liquidstaking') && 'dcAndLsOverlap' in tvlTypes) {
+	if (shouldSubtractTvlOverlapSeries(includedTvlTypes) && 'dcAndLsOverlap' in tvlTypes) {
 		includedTvlTypes.add('dcAndLsOverlap')
 	}
 

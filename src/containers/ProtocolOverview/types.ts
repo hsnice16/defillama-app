@@ -46,6 +46,7 @@ interface IAdapterOverview {
 	total7d: number | null
 	total30d: number | null
 	total1y: number | null
+	annualized1y: number | null
 	totalAllTime: number | null
 	methodology?: string | null
 	methodologyURL?: string | null
@@ -58,10 +59,8 @@ interface IAdapterOverview {
 	> | null
 }
 
-export type IProtocolOverviewChartSeries = IProtocolNumericSeries
-export type IProtocolOverviewInitialMultiSeriesChartData = Partial<
-	Record<ProtocolChartsLabels, IProtocolOverviewChartSeries>
->
+type IProtocolOverviewChartSeries = IProtocolNumericSeries
+type IProtocolOverviewInitialMultiSeriesChartData = Partial<Record<ProtocolChartsLabels, IProtocolOverviewChartSeries>>
 
 export interface IProtocolOverviewPageData {
 	initialMultiSeriesChartData: IProtocolOverviewInitialMultiSeriesChartData
@@ -81,6 +80,7 @@ export interface IProtocolOverviewPageData {
 	currentTvlByChain: Record<string, number> | null
 	description?: string
 	website?: string | null
+	isWebsiteReferral?: boolean
 	twitter?: string | null
 	safeHarbor?: boolean
 	tvlMethodology?: string | null
@@ -209,34 +209,7 @@ export interface IProtocolOverviewPageData {
 	llamaswapChains?: BuyOnLlamaswapChain[] | null
 }
 
-interface ICredit {
-	by: string
-}
-
-interface IContentElement {
-	subheadlines: { basic: string }
-	type: string
-	promo_items: { basic: { url: string } }
-	canonical_url: string
-	display_date: string
-	credits: ICredit[]
-	headlines: { basic: string }
-	taxonomy?: {
-		tags?: {
-			description: string
-			text: string
-			slug: string
-		}[]
-	}
-}
-
-export interface IArticlesResponse {
-	type: string
-	version: string
-	content_elements: IContentElement[]
-}
-
-export interface IArticle {
+interface IArticle {
 	headline: string
 	date: string
 	href: string

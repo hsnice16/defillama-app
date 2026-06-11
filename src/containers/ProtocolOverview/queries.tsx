@@ -5,16 +5,16 @@ import type { BlockExplorersResponse, ProtocolLiquidityTokensResponse } from '~/
 import { oracleProtocols, V2_SERVER_URL, YIELD_CONFIG_API, YIELD_POOLS_API } from '~/constants'
 import { chainCoingeckoIdsForGasNotMcap } from '~/constants/chainTokens'
 import { CHART_COLORS } from '~/constants/colors'
+import { fetchAdapterProtocolMetrics } from '~/containers/AdapterMetrics/api'
 import { fetchBridgeVolumeBySlug } from '~/containers/Bridges/api'
-import { fetchAdapterProtocolMetrics } from '~/containers/DimensionAdapters/api'
 import { governanceIdsToApis } from '~/containers/Governance/api'
 import { fetchHacks } from '~/containers/Hacks/api'
 import type { IHackApiItem } from '~/containers/Hacks/api.types'
 import { getProtocolIncentivesFromAggregatedEmissions } from '~/containers/Incentives/queries'
 import { fetchOracleMetrics, fetchOracleProtocolChart } from '~/containers/Oracles/api'
 import type { IOracleProtocolChart } from '~/containers/Oracles/api.types'
-import { fetchProtocols } from '~/containers/Protocols/api'
-import type { ProtocolsResponse } from '~/containers/Protocols/api.types'
+import { fetchProtocols } from '~/containers/ProtocolLists/api'
+import type { ProtocolsResponse } from '~/containers/ProtocolLists/api.types'
 import { fetchTreasuries } from '~/containers/Treasuries/api'
 import type { ProtocolEmissionSupplyMetricsMap } from '~/containers/Unlocks/api.types'
 import { TVL_SETTINGS_KEYS_SET } from '~/contexts/LocalStorage'
@@ -277,7 +277,12 @@ export const getProtocolOverviewPageData = async ({
 					adapterType: 'dexs',
 					dataType: 'dailyNotionalVolume',
 					protocol: currentProtocolMetadata.displayName ?? ''
-				}).then((data) => formatAdapterData({ data, methodologyKey: 'dexsNotionalVolume' }))
+				}).then((data) =>
+					formatAdapterData({
+						data,
+						methodologyKey: data.methodology?.NotionalVolume ? 'NotionalVolume' : 'dexsNotionalVolume'
+					})
+				)
 			: Promise.resolve(null),
 		currentProtocolMetadata.dexAggregators
 			? fetchAdapterProtocolMetrics({
@@ -764,6 +769,7 @@ export const getProtocolOverviewPageData = async ({
 		currentTvlByChain: currentProtocolMetadata.tvl ? (protocolData.currentChainTvls ?? {}) : {},
 		description: protocolData.description ?? '',
 		website: protocolData.referralUrl?.trim() || protocolData.url?.trim() || null,
+		isWebsiteReferral: Boolean(protocolData.referralUrl?.trim()),
 		twitter: protocolData.twitter ?? null,
 		safeHarbor: currentProtocolMetadata.safeHarbor ?? false,
 		github: protocolData.github

@@ -201,6 +201,9 @@ export const ProtocolInfo = (props: IProtocolOverviewPageData) => {
 						className="flex items-center gap-1 rounded-full border border-(--primary) px-2 py-1 text-xs font-medium whitespace-nowrap hover:bg-(--btn2-hover-bg) focus-visible:bg-(--btn2-hover-bg)"
 						target="_blank"
 						rel="noopener noreferrer"
+						data-umami-event="protocol-website-click"
+						data-umami-event-protocol={props.name}
+						data-umami-event-referral={props.isWebsiteReferral ? 'true' : 'false'}
 					>
 						<Icon name="earth" className="size-3" />
 						<span>Website</span>
@@ -286,6 +289,7 @@ const Methodology = (props: IProtocolOverviewPageData) => {
 			<MethodologyByAdapter adapter={props.bribeRevenue} title="Bribe Revenue" />
 			<MethodologyByAdapter adapter={props.tokenTax} title="Token Tax" />
 			<MethodologyByAdapter adapter={props.dexVolume} title="DEX Volume" />
+			<MethodologyByAdapter adapter={props.dexNotionalVolume} title="Notional Volume" />
 			<MethodologyByAdapter adapter={props.dexAggregatorVolume} title="DEX Aggregator Volume" />
 			<MethodologyByAdapter adapter={props.perpVolume} title="Perp Volume" />
 			<MethodologyByAdapter adapter={props.perpAggregatorVolume} title="Perp Aggregator Volume" />

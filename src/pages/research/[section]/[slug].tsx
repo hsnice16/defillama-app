@@ -4,6 +4,7 @@ import Head from 'next/head'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 import { useEffect } from 'react'
+import { Icon } from '~/components/Icon'
 import {
 	ArticleApiError,
 	getAllArticlesBanner,
@@ -20,7 +21,7 @@ import {
 } from '~/containers/Articles/renderer/ArticleBannerStrip'
 import { ArticleRenderer } from '~/containers/Articles/renderer/ArticleRenderer'
 import { ResearchLoader } from '~/containers/Articles/ResearchLoader'
-import type { ArticleDocument } from '~/containers/Articles/types'
+import type { ArticleAuthor, ArticleDocument, ArticlePublicAuthorProfile } from '~/containers/Articles/types'
 import { ARTICLE_SECTION_FROM_SLUG, ARTICLE_SECTION_SLUGS } from '~/containers/Articles/types'
 import { AppMetadataProvider } from '~/containers/ProDashboard/AppMetadataContext'
 import { useAuthContext } from '~/containers/Subscription/auth'
@@ -45,28 +46,47 @@ type PublicArticleDocument = Omit<
 	'authorProfile' | 'coAuthors' | 'viewerRole' | 'pending' | 'pendingUpdatedAt' | 'pendingActorPbUserId'
 > & {
 	authorProfile?: ArticleDocument['authorProfile']
+	coAuthors?: ArticleDocument['coAuthors']
 	viewerRole?: ArticleDocument['viewerRole']
+}
+
+function toPublicAuthorProfile(profile: ArticleAuthor): ArticlePublicAuthorProfile {
+	const {
+		id: _id,
+		pbUserId: _pbUserId,
+		...publicProfile
+	} = profile as ArticleAuthor & {
+		id?: string
+		pbUserId?: string
+	}
+	return publicProfile
 }
 
 function sanitizePublicArticle(article: ArticleDocument): PublicArticleDocument {
 	const {
-		coAuthors: _coAuthors,
+		authorProfile,
+		coAuthors,
 		viewerRole: _viewerRole,
 		pending: _pending,
 		pendingUpdatedAt: _pendingUpdatedAt,
 		pendingActorPbUserId: _pendingActorPbUserId,
 		...publicArticle
 	} = article
+	const publicCoAuthors = (coAuthors ?? []).map(toPublicAuthorProfile)
 
 	if (article.brandByline === true) {
-		const { author: _author, authorProfile: _authorProfile, ...brandArticle } = publicArticle
 		return {
-			...brandArticle,
-			author: 'DefiLlama Research'
+			...publicArticle,
+			author: 'DefiLlama Research',
+			...(publicCoAuthors.length > 0 ? { coAuthors: publicCoAuthors } : {})
 		}
 	}
 
-	return publicArticle
+	return {
+		...publicArticle,
+		...(authorProfile ? { authorProfile: toPublicAuthorProfile(authorProfile) } : {}),
+		...(publicCoAuthors.length > 0 ? { coAuthors: publicCoAuthors } : {})
+	}
 }
 
 async function loadArticleBannerData(article: ArticleDocument): Promise<ArticleBannerStripInitialData> {
@@ -138,18 +158,7 @@ function OwnerEditChip({ article }: { article: PublicArticleDocument }) {
 				href={`/research/edit/${article.id}`}
 				className="pointer-events-auto flex items-center gap-2 rounded-md border border-(--cards-border) bg-(--cards-bg) px-3 py-2 text-sm font-medium text-(--text-primary) shadow-lg transition-colors hover:border-(--link-text)/40 hover:text-(--link-text)"
 			>
-				<svg
-					viewBox="0 0 24 24"
-					className="size-4"
-					fill="none"
-					stroke="currentColor"
-					strokeWidth="1.75"
-					strokeLinecap="round"
-					strokeLinejoin="round"
-				>
-					<path d="M12 20h9" />
-					<path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z" />
-				</svg>
+				<Icon name="pencil" className="size-4" />
 				Edit research
 			</Link>
 		</div>

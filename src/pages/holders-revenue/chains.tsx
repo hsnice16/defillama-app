@@ -1,7 +1,8 @@
-import { ChainsByAdapter } from '~/containers/DimensionAdapters/ChainsByAdapter'
-import { ADAPTER_DATA_TYPES, ADAPTER_TYPES } from '~/containers/DimensionAdapters/constants'
-import { getChainsByAdapterPageData } from '~/containers/DimensionAdapters/queries'
-import type { IChainsByAdapterPageData } from '~/containers/DimensionAdapters/types'
+import { feesOptions } from '~/components/Filters/options'
+import { ChainsByAdapter } from '~/containers/AdapterMetrics/ChainsByAdapter'
+import { ADAPTER_DATA_TYPES, ADAPTER_TYPES } from '~/containers/AdapterMetrics/constants'
+import { getChainsByAdapterPageData } from '~/containers/AdapterMetrics/queries'
+import type { IChainsByAdapterPageData } from '~/containers/AdapterMetrics/types'
 import Layout from '~/layout'
 import { maxAgeForNext } from '~/utils/maxAgeForNext'
 import { withPerformanceLogging } from '~/utils/perf'
@@ -33,6 +34,8 @@ const HoldersRevenueByChain = (props: IChainsByAdapterPageData) => {
 			title="Holders Revenue by Chain - DefiLlama"
 			description="Compare holder revenue across chains, from buyback and burn, fee burning, and direct distributions to stakers."
 			canonicalUrl={`/holders-revenue/chains`}
+			metricFilters={feesOptions}
+			metricFiltersLabel="Include in Revenue"
 			pageName={pageName}
 		>
 			<ChainsByAdapter {...props} type={type} />

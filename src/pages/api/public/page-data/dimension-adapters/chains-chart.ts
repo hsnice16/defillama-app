@@ -1,7 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { ADAPTER_DATA_TYPES, ADAPTER_TYPES } from '~/containers/DimensionAdapters/constants'
-import { getChainsByAdapterAllChains, getChainsByAdapterChartData } from '~/containers/DimensionAdapters/queries'
+import { ADAPTER_DATA_TYPES, ADAPTER_TYPES } from '~/containers/AdapterMetrics/constants'
+import { getChainsByAdapterAllChains, getChainsByAdapterChartData } from '~/containers/AdapterMetrics/queries'
 import { setPageDataCacheHeaders } from '~/server/pageData/cache'
+import { getFirstQueryParam } from '~/server/pageData/query'
 import { recordRouteRuntimeError, withApiRouteTelemetry } from '~/utils/telemetry'
 
 export const config = {
@@ -13,19 +14,14 @@ export const config = {
 const ADAPTER_TYPE_VALUES = new Set<string>(Object.values(ADAPTER_TYPES))
 const ADAPTER_DATA_TYPE_VALUES = new Set<string>(Object.values(ADAPTER_DATA_TYPES))
 
-function getStringParam(value: string | string[] | undefined): string | undefined {
-	if (Array.isArray(value)) return value[0]
-	return value
-}
-
 async function handler(req: NextApiRequest, res: NextApiResponse) {
 	if (req.method !== 'GET') {
 		res.setHeader('Allow', ['GET'])
 		return res.status(405).json({ error: 'Method Not Allowed' })
 	}
 
-	const adapterType = getStringParam(req.query.adapterType)
-	const dataType = getStringParam(req.query.dataType)
+	const adapterType = getFirstQueryParam(req.query.adapterType)
+	const dataType = getFirstQueryParam(req.query.dataType)
 	if (!adapterType || !dataType) {
 		return res.status(400).json({ error: 'adapterType and dataType parameters are required' })
 	}
@@ -34,6 +30,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 	}
 
 	try {
+		// Build the chain universe from adapter metadata so this endpoint only
+		// asks upstream for chains that expose the requested metric.
 		const metadataCache = await import('~/utils/metadata').then((m) => m.default)
 		const allChains = getChainsByAdapterAllChains({
 			adapterType: adapterType as `${ADAPTER_TYPES}`,
