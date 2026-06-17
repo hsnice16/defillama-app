@@ -38,6 +38,7 @@ function makeArticle(): ArticleDocument {
 				updatedAt: '2026-01-01T00:00:00.000Z'
 			}
 		],
+		guestAuthors: [{ name: 'Person A', type: 'Person', url: 'https://person-a.com' }],
 		contentJson: { type: 'doc', content: [] },
 		plainText: '',
 		entities: [],
@@ -61,5 +62,11 @@ describe('ArticleSeo rendered metadata', () => {
 		expect(html).toContain(
 			'<meta property="article:author" content="https://defillama.com/research/authors/john-doe"/>'
 		)
+	})
+
+	it('renders account-less guest authors in OG tags and Article JSON-LD', () => {
+		const html = renderToStaticMarkup(<ArticleSeo article={makeArticle()} />)
+		expect(html).toContain('<meta property="article:author" content="https://person-a.com"/>')
+		expect(html).toContain('"name":"Person A"')
 	})
 })

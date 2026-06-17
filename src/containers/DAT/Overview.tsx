@@ -146,15 +146,13 @@ const overviewColumns = [
 						render={<button />}
 						className="ml-auto flex h-5 w-full! flex-nowrap items-center bg-white"
 					>
-						{assetBreakdown.map((asset) => {
-							return (
-								<div
-									key={asset.name + asset.dominance + info.row.original.name}
-									style={{ width: `${asset.dominance}%`, background: asset.color }}
-									className="h-5"
-								/>
-							)
-						})}
+						{assetBreakdown.map((asset) => (
+							<div
+								key={asset.name + asset.dominance + info.row.original.name}
+								style={{ width: `${asset.dominance}%`, background: asset.color }}
+								className="h-5"
+							/>
+						))}
 					</Tooltip>
 				)
 			},

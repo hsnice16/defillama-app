@@ -5,6 +5,7 @@ import type { DashboardItemConfig } from '../types'
 
 export interface Dashboard {
 	id: string
+	slug?: string
 	user: string
 	data: {
 		items: DashboardItemConfig[]
@@ -54,6 +55,18 @@ export interface FollowingShelf {
 interface LiteDashboard {
 	id: string
 	name: string
+	slug?: string
+}
+
+export function dashboardUrlKey(dashboard: { id: string; slug?: string }): string {
+	return dashboard.slug || dashboard.id
+}
+
+export function matchesDashboardKey(
+	dashboard: { id: string; slug?: string } | null | undefined,
+	key: string | null | undefined
+): boolean {
+	return !!dashboard && !!key && (dashboard.id === key || dashboard.slug === key)
 }
 
 export class DashboardError extends Error {
@@ -90,7 +103,7 @@ function dashboardSaveBody(data: DashboardSavePayload) {
 }
 
 function dashboardSaveUrl(id?: string) {
-	return id ? `${FEATURES_SERVER}/dashboards/${encodeURIComponent(id)}` : `${FEATURES_SERVER}/dashboards`
+	return id ? `/api/private/pro-dashboard/save?id=${encodeURIComponent(id)}` : `/api/private/pro-dashboard/save`
 }
 
 export function buildDashboardSaveRequest(params: { id?: string; data: DashboardSavePayload }) {
@@ -198,7 +211,7 @@ class DashboardAPIService {
 		id: string,
 		authorizedFetch: (url: string, options?: any) => Promise<Response>
 	): Promise<{ message: string }> {
-		const response = await authorizedFetch(`${FEATURES_SERVER}/dashboards/delete/${id}`, {
+		const response = await authorizedFetch(`/api/private/pro-dashboard/delete?id=${encodeURIComponent(id)}`, {
 			method: 'POST'
 		})
 

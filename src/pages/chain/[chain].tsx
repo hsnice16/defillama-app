@@ -8,46 +8,66 @@ import { fetchEntityQuestions } from '~/containers/LlamaAI/api'
 import Layout from '~/layout'
 import { slug } from '~/utils'
 import { maxAgeForNext } from '~/utils/maxAgeForNext'
-import { withPerformanceLogging } from '~/utils/perf'
+import { createRoutePhaseTimer, withPerformanceLogging } from '~/utils/perf'
 
 const pageName = ['Overview']
 
 export const getStaticProps = withPerformanceLogging('chain/[chain]', async ({ params }) => {
-	const chain = params.chain
+	const phaseTimer = createRoutePhaseTimer()
+	const stopGetStaticProps = phaseTimer.start('get_static_props_total')
+	try {
+		const chain = params.chain
 
-	if (typeof chain !== 'string') {
-		return { notFound: true }
-	}
+		if (typeof chain !== 'string') {
+			return { notFound: true }
+		}
 
-	const metadataCache = await import('~/utils/metadata').then((m) => m.default)
-	const { resolveChainParamFromMetadata } = await import('~/server/routeCache/chains')
-	const isAllChain = chain.toLowerCase() === 'all'
-	const chainRoute = isAllChain ? null : resolveChainParamFromMetadata(chain, metadataCache)
-	const normalizedChain = isAllChain ? 'All' : chainRoute?.canonicalName
+		const metadataCachePromise = phaseTimer.time('metadata_import', () =>
+			import('~/utils/metadata').then((m) => m.default)
+		)
+		const chainRoutesPromise = phaseTimer.time(
+			'chain_routes_import',
+			() => import('~/containers/ChainOverview/server/routes')
+		)
+		const [metadataCache, { resolveChainParamFromMetadata }] = await Promise.all([
+			metadataCachePromise,
+			chainRoutesPromise
+		])
+		const isAllChain = chain.toLowerCase() === 'all'
+		const chainRoute = isAllChain ? null : resolveChainParamFromMetadata(chain, metadataCache)
+		const normalizedChain = isAllChain ? 'All' : chainRoute?.canonicalName
 
-	if (!normalizedChain) {
-		return { notFound: true }
-	}
+		if (!normalizedChain) {
+			return { notFound: true }
+		}
 
-	const data = await getChainOverviewData({
-		chain: normalizedChain,
-		chainMetadata: metadataCache.chainMetadata,
-		protocolMetadata: metadataCache.protocolMetadata,
-		categoriesAndTagsMetadata: metadataCache.categoriesAndTags,
-		protocolLlamaswapDataset: metadataCache.protocolLlamaswapDataset,
-		rwaChainsForActiveMcap: metadataCache.rwaList.chains
-	})
+		const data = await phaseTimer.time('chain_overview_data', () =>
+			getChainOverviewData({
+				chain: normalizedChain,
+				chainMetadata: metadataCache.chainMetadata,
+				protocolMetadata: metadataCache.protocolMetadata,
+				categoriesAndTagsMetadata: metadataCache.categoriesAndTags,
+				protocolLlamaswapDataset: metadataCache.protocolLlamaswapDataset,
+				rwaChainsForActiveMcap: metadataCache.rwaList.chains
+			})
+		)
 
-	if (!data) {
-		throw new Error(`Missing page data for route=/chain/[chain] chain=${normalizedChain}`)
-	}
+		if (!data) {
+			throw new Error(`Missing page data for route=/chain/[chain] chain=${normalizedChain}`)
+		}
 
-	const { questions: entityQuestions } =
-		normalizedChain !== 'All' ? await fetchEntityQuestions(normalizedChain, 'chain') : { questions: [] }
+		const { questions: entityQuestions } =
+			normalizedChain !== 'All'
+				? await phaseTimer.time('entity_questions', () => fetchEntityQuestions(normalizedChain, 'chain'))
+				: { questions: [] }
 
-	return {
-		props: { ...data, entityQuestions },
-		revalidate: maxAgeForNext([22])
+		return {
+			props: { ...data, entityQuestions },
+			revalidate: maxAgeForNext([22])
+		}
+	} finally {
+		stopGetStaticProps()
+		phaseTimer.record()
 	}
 })
 
@@ -62,7 +82,7 @@ export async function getStaticPaths() {
 		}
 	}
 
-	const { getChainStaticPaths } = await import('~/server/routeCache/chains')
+	const { getChainStaticPaths } = await import('~/containers/ChainOverview/server/routes')
 	const paths = await getChainStaticPaths()
 
 	return { paths, fallback: 'blocking' }

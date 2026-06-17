@@ -98,7 +98,9 @@ function buildSavePayload(article: LocalArticleDocument, options: { includeStatu
 		brandByline: article.brandByline ?? false,
 		featuredRank: typeof article.featuredRank === 'number' ? article.featuredRank : null,
 		featuredUntil: article.featuredUntil ? article.featuredUntil : null,
-		interviewees: article.interviewees ?? null
+		interviewees: article.interviewees ?? null,
+		guestAuthors: article.guestAuthors ?? [],
+		pageAssets: article.pageAssets ?? []
 	}
 }
 

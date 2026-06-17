@@ -15,7 +15,7 @@ import {
 	type Table
 } from '@tanstack/react-table'
 import { useCallback, useContext, useDeferredValue, useEffect, useMemo, useState } from 'react'
-import type { ChainMetrics } from '~/server/unifiedTable/protocols'
+import type { ChainMetrics } from '~/containers/ProDashboard/server/unifiedTable/protocols'
 import { StreamDoneContext } from '../../../queries'
 import type { UnifiedRowHeaderType, UnifiedTableConfig } from '../../../types'
 import { getUnifiedTableColumns } from '../config/ColumnRegistry'
@@ -72,7 +72,7 @@ const buildQueryString = (config: UnifiedTableConfig, rowHeaders: UnifiedRowHead
 
 const fetchUnifiedTableRows = async (config: UnifiedTableConfig, rowHeaders: UnifiedRowHeaderType[]) => {
 	const queryString = buildQueryString(config, rowHeaders)
-	const response = await fetch(`/api/public/unified-table/protocols?${queryString}`)
+	const response = await fetch(`/api/public/pro-dashboard/unified-table/protocols?${queryString}`)
 
 	if (!response.ok) {
 		throw new Error('Failed to load ProTable data')

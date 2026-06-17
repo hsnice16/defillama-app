@@ -4,7 +4,12 @@ import type { ChartTimeGroupingWithCumulative } from '~/components/ECharts/types
 import { formatBarChart, formatLineChart } from '~/components/ECharts/utils'
 import { useGetBridgeChartDataByChain } from '~/containers/Bridges/queries.client'
 import { useGetStabelcoinsChartDataByChain } from '~/containers/Stablecoins/queries.client'
-import { FEE_EXTRA_DATA_TYPES_BY_SETTING, mergeFeeExtraSeries, type FeeExtraSettings } from '~/metrics/feeExtras'
+import {
+	FEE_EXTRA_CONFIG_BY_SETTING,
+	mergeFeeExtraSeries,
+	type FeeExtraConfig,
+	type FeeExtraSettings
+} from '~/metrics/feeExtras'
 import { feeRevenueMetrics } from '~/metrics/feesRevenue'
 import { getFeeRevenueChainChartApiParams } from '~/metrics/routeSemantics'
 import { fetchJson } from '~/utils/async'
@@ -23,7 +28,7 @@ const buildChainChartApiUrl = (params: Record<string, string | undefined>) => {
 			searchParams.set(key, value)
 		}
 	}
-	return `/api/public/charts/chain?${searchParams.toString()}`
+	return `/api/public/chains/charts?${searchParams.toString()}`
 }
 
 const chainFeesMetric = feeRevenueMetrics.chainFees
@@ -69,11 +74,8 @@ export function buildBridgedTvlChart(
 	const chart: Array<[number, number]> = []
 	for (const item of bridgedTvlData) {
 		if (!item) continue
-		const timestampSec = Math.floor(item.timestamp / 86_400) * 86_400
-		if (isGovTokensEnabled && item.data.ownTokens) {
-			chart.push([timestampSec, +item.data.total + +item.data.ownTokens])
-		}
-		chart.push([timestampSec * 1e3, +item.data.total])
+		const timestampMs = Math.floor(item.timestamp / 86_400) * 86_400 * 1e3
+		chart.push([timestampMs, +item.data.total + (isGovTokensEnabled ? +(item.data.ownTokens ?? 0) : 0)])
 	}
 	return chart
 }
@@ -131,7 +133,7 @@ export const useFetchChainChartData = ({
 	}>({
 		queryKey: ['chain-overview', 'price-history', denominationGeckoId],
 		queryFn: () =>
-			fetchJson(`/api/public/charts/coingecko/${encodeURIComponent(denominationGeckoId!)}?fullChart=true`).then(
+			fetchJson(`/api/public/tokens/charts/coingecko/${encodeURIComponent(denominationGeckoId!)}?fullChart=true`).then(
 				(res) => {
 					if (!res.data?.prices?.length) return null
 					return buildDenominationPriceHistory(res.data)
@@ -241,92 +243,77 @@ export const useFetchChainChartData = ({
 
 	const isChainNativeFeeChartEnabled = isChainFeesEnabled || isChainRevenueEnabled
 	const isAppFeeChartEnabled = isChainAppFeesEnabled || isChainAppRevenueEnabled
+	const chainNativeFeeExtraQueryConfigs = useMemo(() => {
+		const buildConfig = (extra: FeeExtraConfig) => ({
+			queryKey: ['chain-overview', 'chain-native-fee-extra', extra.dataType, selectedChain],
+			queryFn: () =>
+				fetchJson<Array<[number, number]>>(
+					buildChainChartApiUrl({
+						kind: 'adapter-protocol',
+						entity: 'chain',
+						adapterType: 'fees',
+						protocol: selectedChain,
+						dataType: extra.dataType
+					})
+				),
+			staleTime: 60 * 60 * 1000,
+			refetchOnWindowFocus: false,
+			retry: 0,
+			enabled: !!feesSettings[extra.setting] && isChainNativeFeeChartEnabled
+		})
+
+		return {
+			bribes: buildConfig(FEE_EXTRA_CONFIG_BY_SETTING.bribes),
+			tokentax: buildConfig(FEE_EXTRA_CONFIG_BY_SETTING.tokentax)
+		}
+	}, [feesSettings, isChainNativeFeeChartEnabled, selectedChain])
+	const appFeeExtraQueryConfigs = useMemo(() => {
+		const buildConfig = (extra: FeeExtraConfig) => ({
+			queryKey: ['chain-overview', 'app-fee-extra', extra.dataType, selectedChain],
+			queryFn: () =>
+				fetchJson<Array<[number, number]>>(
+					buildChainChartApiUrl({
+						kind: 'adapter-chain',
+						adapterType: 'fees',
+						chain: selectedChain,
+						dataType: extra.dataType
+					})
+				),
+			staleTime: 60 * 60 * 1000,
+			refetchOnWindowFocus: false,
+			retry: 0,
+			enabled: !!feesSettings[extra.setting] && isAppFeeChartEnabled
+		})
+
+		return {
+			bribes: buildConfig(FEE_EXTRA_CONFIG_BY_SETTING.bribes),
+			tokentax: buildConfig(FEE_EXTRA_CONFIG_BY_SETTING.tokentax)
+		}
+	}, [feesSettings, isAppFeeChartEnabled, selectedChain])
 
 	const {
 		data: chainNativeBribesDataChart = EMPTY_FEE_EXTRA_CHART,
 		isLoading: fetchingChainNativeBribes,
 		error: chainNativeBribesError
-	} = useQuery<Array<[number, number]>>({
-		queryKey: ['chain-overview', 'chain-native-fee-extra', FEE_EXTRA_DATA_TYPES_BY_SETTING.bribes, selectedChain],
-		queryFn: () =>
-			fetchJson<Array<[number, number]>>(
-				buildChainChartApiUrl({
-					kind: 'adapter-protocol',
-					entity: 'chain',
-					adapterType: 'fees',
-					protocol: selectedChain,
-					dataType: FEE_EXTRA_DATA_TYPES_BY_SETTING.bribes
-				})
-			),
-		staleTime: 60 * 60 * 1000,
-		refetchOnWindowFocus: false,
-		retry: 0,
-		enabled: !!feesSettings.bribes && isChainNativeFeeChartEnabled
-	})
+	} = useQuery<Array<[number, number]>>(chainNativeFeeExtraQueryConfigs.bribes)
 
 	const {
 		data: chainNativeTokenTaxDataChart = EMPTY_FEE_EXTRA_CHART,
 		isLoading: fetchingChainNativeTokenTax,
 		error: chainNativeTokenTaxError
-	} = useQuery<Array<[number, number]>>({
-		queryKey: ['chain-overview', 'chain-native-fee-extra', FEE_EXTRA_DATA_TYPES_BY_SETTING.tokentax, selectedChain],
-		queryFn: () =>
-			fetchJson<Array<[number, number]>>(
-				buildChainChartApiUrl({
-					kind: 'adapter-protocol',
-					entity: 'chain',
-					adapterType: 'fees',
-					protocol: selectedChain,
-					dataType: FEE_EXTRA_DATA_TYPES_BY_SETTING.tokentax
-				})
-			),
-		staleTime: 60 * 60 * 1000,
-		refetchOnWindowFocus: false,
-		retry: 0,
-		enabled: !!feesSettings.tokentax && isChainNativeFeeChartEnabled
-	})
+	} = useQuery<Array<[number, number]>>(chainNativeFeeExtraQueryConfigs.tokentax)
 
 	const {
 		data: appBribesDataChart = EMPTY_FEE_EXTRA_CHART,
 		isLoading: fetchingAppBribes,
 		error: appBribesError
-	} = useQuery<Array<[number, number]>>({
-		queryKey: ['chain-overview', 'app-fee-extra', FEE_EXTRA_DATA_TYPES_BY_SETTING.bribes, selectedChain],
-		queryFn: () =>
-			fetchJson<Array<[number, number]>>(
-				buildChainChartApiUrl({
-					kind: 'adapter-chain',
-					adapterType: 'fees',
-					chain: selectedChain,
-					dataType: FEE_EXTRA_DATA_TYPES_BY_SETTING.bribes
-				})
-			),
-		staleTime: 60 * 60 * 1000,
-		refetchOnWindowFocus: false,
-		retry: 0,
-		enabled: !!feesSettings.bribes && isAppFeeChartEnabled
-	})
+	} = useQuery<Array<[number, number]>>(appFeeExtraQueryConfigs.bribes)
 
 	const {
 		data: appTokenTaxDataChart = EMPTY_FEE_EXTRA_CHART,
 		isLoading: fetchingAppTokenTax,
 		error: appTokenTaxError
-	} = useQuery<Array<[number, number]>>({
-		queryKey: ['chain-overview', 'app-fee-extra', FEE_EXTRA_DATA_TYPES_BY_SETTING.tokentax, selectedChain],
-		queryFn: () =>
-			fetchJson<Array<[number, number]>>(
-				buildChainChartApiUrl({
-					kind: 'adapter-chain',
-					adapterType: 'fees',
-					chain: selectedChain,
-					dataType: FEE_EXTRA_DATA_TYPES_BY_SETTING.tokentax
-				})
-			),
-		staleTime: 60 * 60 * 1000,
-		refetchOnWindowFocus: false,
-		retry: 0,
-		enabled: !!feesSettings.tokentax && isAppFeeChartEnabled
-	})
+	} = useQuery<Array<[number, number]>>(appFeeExtraQueryConfigs.tokentax)
 
 	const { data: stablecoinsChartData = null, isLoading: fetchingStablecoinsChartDataByChain } =
 		useGetStabelcoinsChartDataByChain(toggledChartsSet.has('Stablecoins Mcap') ? selectedChain : null)

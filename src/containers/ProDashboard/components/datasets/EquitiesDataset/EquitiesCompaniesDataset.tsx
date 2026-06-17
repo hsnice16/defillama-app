@@ -16,7 +16,6 @@ import {
 import * as React from 'react'
 import { useContext } from 'react'
 import { useTableSearch } from '~/components/Table/utils'
-import { fetchEquitiesCompanies } from '~/containers/Equities/api'
 import type { IEquitiesCompanyApiItem } from '~/containers/Equities/api.types'
 import { ProxyAuthTokenContext, StreamDoneContext } from '~/containers/ProDashboard/queries'
 import { fetchEquitiesCompaniesViaProxy } from '~/containers/ProDashboard/services/fetchViaProxy'
@@ -30,6 +29,7 @@ import { TablePagination } from '../../ProTable/TablePagination'
 
 type EquitiesCompanyRow = {
 	ticker: string
+	country: string
 	name: string
 	currentPrice: number
 	volume: number
@@ -39,8 +39,8 @@ type EquitiesCompanyRow = {
 	priceChangePercentage1m: number
 	trailingPE: number | null
 	dividendYield: number | null
-	revenueTTM: number
-	earningsTTM: number
+	revenueTTM: number | null
+	earningsTTM: number | null
 }
 
 function formatPercent(value: number | null | undefined): string {
@@ -59,6 +59,7 @@ const columns: ColumnDef<EquitiesCompanyRow, any>[] = [
 	columnHelper.accessor('ticker', {
 		id: 'ticker',
 		header: 'Ticker',
+		enableSorting: false,
 		cell: (info) => <span className="block truncate text-sm font-semibold">{info.getValue()}</span>,
 		size: 100,
 		maxSize: 100
@@ -66,6 +67,7 @@ const columns: ColumnDef<EquitiesCompanyRow, any>[] = [
 	columnHelper.accessor('name', {
 		id: 'name',
 		header: 'Name',
+		enableSorting: false,
 		cell: (info) => <span className="block truncate text-sm">{info.getValue()}</span>,
 		size: 200,
 		maxSize: 200
@@ -165,21 +167,18 @@ function useEquitiesCompaniesTableData() {
 
 	return useQuery({
 		queryKey: ['pro-dashboard', 'equities-companies-table'],
-		queryFn: async () => {
-			if (authToken) {
-				return fetchEquitiesCompaniesViaProxy(authToken)
-			}
-			return fetchEquitiesCompanies()
-		},
-		enabled: streamDone,
+		queryFn: () => fetchEquitiesCompaniesViaProxy(authToken!),
+		enabled: streamDone && Boolean(authToken),
 		staleTime: STALE_TIME,
 		refetchOnWindowFocus: false,
 		retry: 1,
 		select: (data: IEquitiesCompanyApiItem[]): EquitiesCompanyRow[] => {
 			if (!data) return []
-			return data
-				.map((item) => ({
+			const rows: EquitiesCompanyRow[] = []
+			for (const item of data) {
+				rows.push({
 					ticker: item.ticker,
+					country: item.country,
 					name: item.name,
 					currentPrice: item.currentPrice,
 					volume: item.volume,
@@ -191,8 +190,9 @@ function useEquitiesCompaniesTableData() {
 					dividendYield: item.dividendYield,
 					revenueTTM: item.revenueTTM,
 					earningsTTM: item.earningsTTM
-				}))
-				.sort((a, b) => b.marketCap - a.marketCap)
+				})
+			}
+			return rows.sort((a, b) => b.marketCap - a.marketCap)
 		}
 	})
 }

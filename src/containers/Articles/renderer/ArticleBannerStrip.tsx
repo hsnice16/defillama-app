@@ -32,7 +32,8 @@ export function ArticleBannerStrip({ scope, section, articleId, initialData }: P
 		enabled: scope === 'article' && !!articleId,
 		initialData: scope === 'article' ? (initialData?.article ?? undefined) : undefined,
 		retry: false,
-		staleTime: 60_000
+		staleTime: 0,
+		refetchOnMount: 'always'
 	})
 
 	const sectionSlug = scope === 'section' ? section : scope === 'article' ? section : null
@@ -49,7 +50,8 @@ export function ArticleBannerStrip({ scope, section, articleId, initialData }: P
 		enabled: sectionEnabled,
 		initialData: sectionSlug ? (initialData?.section ?? undefined) : undefined,
 		retry: false,
-		staleTime: 60_000
+		staleTime: 0,
+		refetchOnMount: 'always'
 	})
 
 	const allArticlesEnabled =
@@ -66,7 +68,8 @@ export function ArticleBannerStrip({ scope, section, articleId, initialData }: P
 		enabled: allArticlesEnabled,
 		initialData: scope === 'article' ? (initialData?.allArticles ?? undefined) : undefined,
 		retry: false,
-		staleTime: 60_000
+		staleTime: 0,
+		refetchOnMount: 'always'
 	})
 
 	const landingBannerQuery = useQuery<BannerLookupResult>({
@@ -75,7 +78,8 @@ export function ArticleBannerStrip({ scope, section, articleId, initialData }: P
 		enabled: scope === 'landing',
 		initialData: scope === 'landing' ? (initialData?.landing ?? undefined) : undefined,
 		retry: false,
-		staleTime: 60_000
+		staleTime: 0,
+		refetchOnMount: 'always'
 	})
 
 	const banner: Banner | null =

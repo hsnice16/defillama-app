@@ -66,6 +66,9 @@ function articleEntities(article: ArticleDocument): { type: string; label: strin
 		if (entry.name === 'DefiLlama Research') continue
 		push('person', entry.name)
 	}
+	for (const guest of article.guestAuthors ?? []) {
+		push(guest.type === 'Organization' ? 'organization' : 'person', guest.name)
+	}
 	for (const entity of article.entities ?? []) {
 		push(ENTITY_TYPE_MAP[entity.entityType] ?? entity.entityType, entity.label)
 	}

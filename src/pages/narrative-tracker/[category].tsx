@@ -4,28 +4,37 @@ import { getCoinPerformance } from '~/containers/NarrativeTracker/queries'
 import type { CategoryPerformanceProps } from '~/containers/NarrativeTracker/types'
 import Layout from '~/layout'
 import { maxAgeForNext } from '~/utils/maxAgeForNext'
-import { withPerformanceLogging } from '~/utils/perf'
+import { createRoutePhaseTimer, withPerformanceLogging } from '~/utils/perf'
 
 export const getStaticProps = withPerformanceLogging('category-performance', async ({ params }) => {
-	const rawCategory = params?.category
-	const categoryId = Array.isArray(rawCategory) ? rawCategory[0] : rawCategory
-	if (typeof categoryId !== 'string' || categoryId.length === 0) {
-		return { notFound: true }
-	}
+	const phaseTimer = createRoutePhaseTimer()
+	const stopGetStaticProps = phaseTimer.start('get_static_props_total')
+	try {
+		const rawCategory = params?.category
+		const categoryId = Array.isArray(rawCategory) ? rawCategory[0] : rawCategory
+		if (typeof categoryId !== 'string' || categoryId.length === 0) {
+			return { notFound: true }
+		}
 
-	const metadataCache = await import('~/utils/metadata').then((m) => m.default)
-	if (!metadataCache.narrativeCategoryIdsSet.has(categoryId)) {
-		return { notFound: true }
-	}
+		const metadataCache = await phaseTimer.time('metadata_import', () =>
+			import('~/utils/metadata').then((m) => m.default)
+		)
+		if (!metadataCache.narrativeCategoryIdsSet.has(categoryId)) {
+			return { notFound: true }
+		}
 
-	const data = await getCoinPerformance(categoryId)
+		const data = await phaseTimer.time('category_performance_data', () => getCoinPerformance(categoryId))
 
-	return {
-		props: {
-			...data,
-			categoryId
-		},
-		revalidate: maxAgeForNext([22])
+		return {
+			props: {
+				...data,
+				categoryId
+			},
+			revalidate: maxAgeForNext([22])
+		}
+	} finally {
+		stopGetStaticProps()
+		phaseTimer.record()
 	}
 })
 
@@ -40,7 +49,7 @@ export async function getStaticPaths() {
 		}
 	}
 
-	const { getNarrativeCategoryStaticPaths } = await import('~/server/routeCache/assets')
+	const { getNarrativeCategoryStaticPaths } = await import('~/containers/NarrativeTracker/server/routes')
 	const paths = await getNarrativeCategoryStaticPaths()
 
 	return { paths, fallback: 'blocking' }

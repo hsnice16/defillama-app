@@ -1,8 +1,11 @@
 import { validateArticleChartConfig } from './chartAdapters'
 import { extractArticleContent } from './extractors'
 import type {
+	ArticleGuestAuthor,
+	ArticleGuestAuthorType,
 	ArticleImage,
 	ArticleInterviewee,
+	ArticlePageAsset,
 	ArticlePdf,
 	ArticleSection,
 	ArticleSnapshotPayload,
@@ -132,6 +135,54 @@ function normalizeInterviewees(value: unknown): ArticleInterviewee[] | undefined
 		const externalUrl = normalizeInterviewUrl(entry.externalUrl)
 		if (externalUrl) interviewee.externalUrl = externalUrl
 		out.push(interviewee)
+		if (out.length >= 12) break
+	}
+	return out.length > 0 ? out : undefined
+}
+
+function normalizeGuestAuthorUrl(value: unknown): string | undefined {
+	const trimmed = normalizeOptionalString(value)
+	if (!trimmed) return undefined
+	const candidate = /^[a-z][a-z0-9+.-]*:/i.test(trimmed) ? trimmed : `https://${trimmed}`
+	try {
+		const url = new URL(candidate)
+		if (url.protocol !== 'http:' && url.protocol !== 'https:') return undefined
+		return candidate
+	} catch {
+		return undefined
+	}
+}
+
+function normalizeGuestAuthors(value: unknown): ArticleGuestAuthor[] | undefined {
+	if (!Array.isArray(value)) return undefined
+	const out: ArticleGuestAuthor[] = []
+	for (const entry of value) {
+		if (!isRecord(entry)) continue
+		const name = normalizeOptionalString(entry.name)
+		if (!name) continue
+		const type: ArticleGuestAuthorType = entry.type === 'Organization' ? 'Organization' : 'Person'
+		const guest: ArticleGuestAuthor = { name, type }
+		const url = normalizeGuestAuthorUrl(entry.url)
+		if (url) guest.url = url
+		out.push(guest)
+		if (out.length >= 20) break
+	}
+	return out.length > 0 ? out : undefined
+}
+
+function normalizePageAssets(value: unknown): ArticlePageAsset[] | undefined {
+	if (!Array.isArray(value)) return undefined
+	const seen = new Set<string>()
+	const out: ArticlePageAsset[] = []
+	for (const entry of value) {
+		if (!isRecord(entry)) continue
+		const geckoId = normalizeOptionalString(entry.geckoId)
+		const symbol = normalizeOptionalString(entry.symbol)
+		const name = normalizeOptionalString(entry.name)
+		if (!geckoId || !symbol || !name) continue
+		if (seen.has(geckoId)) continue
+		seen.add(geckoId)
+		out.push({ geckoId, symbol, name })
 		if (out.length >= 12) break
 	}
 	return out.length > 0 ? out : undefined
@@ -367,6 +418,9 @@ export function normalizeLocalArticleDocument(
 		: (existing?.editorialTags ?? [])
 	const interviewees =
 		'interviewees' in input ? normalizeInterviewees(input.interviewees) : (existing?.interviewees ?? undefined)
+	const guestAuthors =
+		'guestAuthors' in input ? normalizeGuestAuthors(input.guestAuthors) : (existing?.guestAuthors ?? undefined)
+	const pageAssets = 'pageAssets' in input ? normalizePageAssets(input.pageAssets) : (existing?.pageAssets ?? undefined)
 	const extracted = extractArticleContent(contentJson)
 	const trimmedPlain = extracted.plainText.trim()
 	const firstSentenceMatch = trimmedPlain.match(/^[\s\S]*?[.!?](?:\s|$)/)
@@ -411,6 +465,8 @@ export function normalizeLocalArticleDocument(
 			tags: normalizeTags(input.tags),
 			editorialTags,
 			...(interviewees && interviewees.length > 0 ? { interviewees } : {}),
+			...(guestAuthors && guestAuthors.length > 0 ? { guestAuthors } : {}),
+			...(pageAssets && pageAssets.length > 0 ? { pageAssets } : {}),
 			section,
 			displayDate,
 			goLiveAt,

@@ -17,9 +17,12 @@ import * as React from 'react'
 import { useContext, useMemo, useState } from 'react'
 import { Icon } from '~/components/Icon'
 import { useTableSearch } from '~/components/Table/utils'
-import { fetchEquitiesFilings } from '~/containers/Equities/api'
 import type { IEquitiesFilingApiItem } from '~/containers/Equities/api.types'
-import { formatEquitiesDate } from '~/containers/Equities/utils'
+import {
+	buildEquityTickerCountrySlug,
+	formatEquitiesDate,
+	parseEquityTickerCountryParam
+} from '~/containers/Equities/utils'
 import { ProxyAuthTokenContext, StreamDoneContext } from '~/containers/ProDashboard/queries'
 import { fetchEquitiesFilingsViaProxy } from '~/containers/ProDashboard/services/fetchViaProxy'
 import { useBreakpointWidth } from '~/hooks/useBreakpointWidth'
@@ -83,19 +86,19 @@ const STALE_TIME = 5 * 60 * 1000
 function useEquitiesFilingsData(ticker: string) {
 	const authToken = useContext(ProxyAuthTokenContext)
 	const streamDone = useContext(StreamDoneContext)
+	const tickerCountry = parseEquityTickerCountryParam(ticker)
+	const queryTicker = tickerCountry ? buildEquityTickerCountrySlug(tickerCountry.ticker, tickerCountry.country) : ticker
 
 	return useQuery({
-		queryKey: ['pro-dashboard', 'equities-filings-table', ticker],
+		queryKey: ['pro-dashboard', 'equities-filings-table', queryTicker],
 		queryFn: async () => {
-			if (authToken) {
-				return fetchEquitiesFilingsViaProxy(ticker, authToken)
-			}
-			return fetchEquitiesFilings(ticker)
+			if (!tickerCountry) throw new Error('Missing ticker param')
+			return fetchEquitiesFilingsViaProxy(tickerCountry.ticker, tickerCountry.country, authToken!)
 		},
 		staleTime: STALE_TIME,
 		refetchOnWindowFocus: false,
 		retry: 1,
-		enabled: Boolean(ticker) && streamDone
+		enabled: Boolean(tickerCountry) && Boolean(authToken) && streamDone
 	})
 }
 
@@ -127,7 +130,11 @@ export function EquitiesFilingsDataset({ ticker }: { ticker: string }) {
 	const filteredData = useMemo(() => {
 		if (!data) return EMPTY_DATA
 		if (selectedForm === 'All') return data
-		return data.filter((filing) => filing.form === selectedForm)
+		const matchingFilings: IEquitiesFilingApiItem[] = []
+		for (const filing of data) {
+			if (filing.form === selectedForm) matchingFilings.push(filing)
+		}
+		return matchingFilings
 	}, [data, selectedForm])
 
 	const instance = useReactTable({

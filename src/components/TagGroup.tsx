@@ -29,22 +29,20 @@ export function TagGroup<V extends readonly string[]>({
 	return (
 		<div role="radiogroup" className={clsx(container, className)} style={style} {...props}>
 			{label ? <p className="pr-1 pl-3">{label}</p> : null}
-			{values.map((value) => {
-				return (
-					<button
-						type="button"
-						role="radio"
-						aria-checked={value === selectedValue}
-						className={button}
-						disabled={disabledValuesSet?.has(value)}
-						data-active={value === selectedValue}
-						key={value}
-						onClick={() => setValue(value)}
-					>
-						{`${value.slice(0, 1).toUpperCase()}${value.slice(1)}`}
-					</button>
-				)
-			})}
+			{values.map((value) => (
+				<button
+					type="button"
+					role="radio"
+					aria-checked={value === selectedValue}
+					className={button}
+					disabled={disabledValuesSet?.has(value)}
+					data-active={value === selectedValue}
+					key={value}
+					onClick={() => setValue(value)}
+				>
+					{`${value.slice(0, 1).toUpperCase()}${value.slice(1)}`}
+				</button>
+			))}
 		</div>
 	)
 }

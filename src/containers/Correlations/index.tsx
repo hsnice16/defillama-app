@@ -68,32 +68,30 @@ export function CoinsPicker({ coinsData, selectCoin, dialogStore, selectedCoins 
 				</div>
 
 				<div className="flex max-h-[400px] w-full flex-col overflow-y-auto">
-					{filteredCoins.slice(0, resultsLength + 1).map((coin) => {
-						return (
-							<button
-								key={coin.name}
-								onClick={() => selectCoin(coin)}
-								className="flex w-full items-center gap-2 rounded-md p-2 text-sm hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg)"
-							>
-								<img
-									alt={''}
-									src={coin.image}
-									height={'24px'}
-									width={'24px'}
-									loading="lazy"
-									onError={(e) => {
-										const img = e.currentTarget
-										img.onerror = null
-										img.src = '/assets/placeholder.png'
-									}}
-									className="inline-block aspect-square shrink-0 rounded-full bg-(--bg-tertiary) object-cover"
-								/>
-								<span>
-									{coin.name} ({coin.symbol.toUpperCase()})
-								</span>
-							</button>
-						)
-					})}
+					{filteredCoins.slice(0, resultsLength + 1).map((coin) => (
+						<button
+							key={coin.name}
+							onClick={() => selectCoin(coin)}
+							className="flex w-full items-center gap-2 rounded-md p-2 text-sm hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg)"
+						>
+							<img
+								alt={''}
+								src={coin.image}
+								height={'24px'}
+								width={'24px'}
+								loading="lazy"
+								onError={(e) => {
+									const img = e.currentTarget
+									img.onerror = null
+									img.src = '/assets/placeholder.png'
+								}}
+								className="inline-block aspect-square shrink-0 rounded-full bg-(--bg-tertiary) object-cover"
+							/>
+							<span>
+								{coin.name} ({coin.symbol.toUpperCase()})
+							</span>
+						</button>
+					))}
 					{resultsLength < filteredCoins.length ? (
 						<button
 							className="w-full p-3 text-left text-(--link) hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg)"

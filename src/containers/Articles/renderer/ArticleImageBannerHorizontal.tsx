@@ -18,7 +18,8 @@ export function ArticleImageBannerHorizontal({ articleId, section }: Props) {
 		queryFn: () => getArticleBanner(articleId),
 		enabled: !!articleId,
 		retry: false,
-		staleTime: 60_000
+		staleTime: 0,
+		refetchOnMount: 'always'
 	})
 
 	const sectionBannerQuery = useQuery<BannerLookupResult>({
@@ -26,7 +27,8 @@ export function ArticleImageBannerHorizontal({ articleId, section }: Props) {
 		queryFn: () => getSectionBanner(section as ArticleSection),
 		enabled: !!section && !!articleId && !articleBannerQuery.isLoading && !articleBannerQuery.data?.imageHorizontal,
 		retry: false,
-		staleTime: 60_000
+		staleTime: 0,
+		refetchOnMount: 'always'
 	})
 
 	const allArticlesBannerQuery = useQuery<BannerLookupResult>({
@@ -39,7 +41,8 @@ export function ArticleImageBannerHorizontal({ articleId, section }: Props) {
 			!sectionBannerQuery.isLoading &&
 			!sectionBannerQuery.data?.imageHorizontal,
 		retry: false,
-		staleTime: 60_000
+		staleTime: 0,
+		refetchOnMount: 'always'
 	})
 
 	const banner: Banner | null =

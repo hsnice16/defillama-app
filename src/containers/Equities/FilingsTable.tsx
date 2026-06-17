@@ -79,10 +79,14 @@ export function EquitiesFilingsTable({
 }) {
 	const [selectedForm, setSelectedForm] = useState<string>('All')
 
-	const filteredFilings = useMemo(
-		() => (selectedForm === 'All' ? filings : filings.filter((filing) => filing.form === selectedForm)),
-		[filings, selectedForm]
-	)
+	const filteredFilings = useMemo(() => {
+		if (selectedForm === 'All') return filings
+		const matchingFilings: IEquitiesFilingApiItem[] = []
+		for (const filing of filings) {
+			if (filing.form === selectedForm) matchingFilings.push(filing)
+		}
+		return matchingFilings
+	}, [filings, selectedForm])
 
 	return (
 		<TableWithSearch

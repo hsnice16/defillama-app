@@ -2,7 +2,7 @@ import { fetchBlockExplorers, fetchLiquidityTokensDataset } from '~/api'
 import { fetchCoinGeckoChartByIdWithCacheFallback } from '~/api/coingecko'
 import type { CgChartResponse } from '~/api/coingecko.types'
 import type { BlockExplorersResponse, ProtocolLiquidityTokensResponse } from '~/api/types'
-import { oracleProtocols, V2_SERVER_URL, YIELD_CONFIG_API, YIELD_POOLS_API } from '~/constants'
+import { V2_SERVER_URL } from '~/constants'
 import { chainCoingeckoIdsForGasNotMcap } from '~/constants/chainTokens'
 import { CHART_COLORS } from '~/constants/colors'
 import { fetchAdapterProtocolMetrics } from '~/containers/AdapterMetrics/api'
@@ -17,7 +17,9 @@ import { fetchProtocols } from '~/containers/ProtocolLists/api'
 import type { ProtocolsResponse } from '~/containers/ProtocolLists/api.types'
 import { fetchTreasuries } from '~/containers/Treasuries/api'
 import type { ProtocolEmissionSupplyMetricsMap } from '~/containers/Unlocks/api.types'
+import { YIELD_CONFIG_API, YIELD_POOLS_API } from '~/containers/Yields/constants'
 import { TVL_SETTINGS_KEYS_SET } from '~/contexts/LocalStorage'
+import { FEE_EXTRA_CONFIG_BY_SETTING, type FeeExtraConfig } from '~/metrics/feeExtras'
 import { capitalizeFirstLetter, slug } from '~/utils'
 import { fetchJson, getFastJsonTimeoutMs, getSlowJsonTimeoutMs } from '~/utils/async'
 import { getBlockExplorerNew } from '~/utils/blockExplorers'
@@ -27,6 +29,7 @@ import { fetchProtocolExpenses, fetchProtocolOverviewMetrics, fetchProtocolTvlCh
 import type { IProtocolValueChart, IProtocolMetricsV2, IProtocolExpenses } from './api.types'
 import { resolveProtocolCategory } from './category'
 import { normalizeChartPointsToMs } from './chartSeries.utils'
+import { oracleProtocols } from './constants'
 import { buildAvailableCharts, buildDefaultToggledCharts } from './defaultCharts'
 import { formatAdapterData } from './formatAdapterData'
 import type { IProtocolOverviewPageData, IProtocolPageMetrics } from './types'
@@ -132,6 +135,21 @@ export const getProtocolOverviewPageData = async ({
 	const currentProtocolSlug = slug(displayName)
 	const oracleProtocolName = (oracleProtocols as Record<string, string>)[displayName] ?? null
 	const isOracleProtocol = Boolean(oracleProtocolName)
+	const feeExtraMetricPromise = (extra: FeeExtraConfig) =>
+		currentProtocolMetadata[extra.protocolMetadataField]
+			? fetchAdapterProtocolMetrics({
+					adapterType: 'fees',
+					dataType: extra.dataType,
+					protocol: displayName
+				}).then((data) =>
+					formatAdapterData({
+						data,
+						methodologyKey: extra.methodologyKey
+					})
+				)
+			: Promise.resolve(null)
+	const bribesDataPromise = feeExtraMetricPromise(FEE_EXTRA_CONFIG_BY_SETTING.bribes)
+	const tokenTaxDataPromise = feeExtraMetricPromise(FEE_EXTRA_CONFIG_BY_SETTING.tokentax)
 
 	const [
 		protocolData,
@@ -252,20 +270,8 @@ export const getProtocolOverviewPageData = async ({
 					protocol: currentProtocolMetadata.displayName ?? ''
 				}).then((data) => formatAdapterData({ data, methodologyKey: 'HoldersRevenue' }))
 			: Promise.resolve(null),
-		currentProtocolMetadata.bribeRevenue
-			? fetchAdapterProtocolMetrics({
-					adapterType: 'fees',
-					dataType: 'dailyBribesRevenue',
-					protocol: currentProtocolMetadata.displayName ?? ''
-				}).then((data) => formatAdapterData({ data, methodologyKey: 'BribesRevenue' }))
-			: Promise.resolve(null),
-		currentProtocolMetadata.tokenTax
-			? fetchAdapterProtocolMetrics({
-					adapterType: 'fees',
-					dataType: 'dailyTokenTaxes',
-					protocol: currentProtocolMetadata.displayName ?? ''
-				}).then((data) => formatAdapterData({ data, methodologyKey: 'TokenTaxes' }))
-			: Promise.resolve(null),
+		bribesDataPromise,
+		tokenTaxDataPromise,
 		currentProtocolMetadata.dexs
 			? fetchAdapterProtocolMetrics({
 					adapterType: 'dexs',

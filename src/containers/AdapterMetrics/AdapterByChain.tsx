@@ -21,18 +21,22 @@ import { QuestionHelper } from '~/components/QuestionHelper'
 import { RowLinksWithDropdown } from '~/components/RowLinksWithDropdown'
 import { SelectWithCombobox } from '~/components/Select/SelectWithCombobox'
 import { VirtualTable } from '~/components/Table/Table'
-import { prepareTableCsv, useSortColumnOrders, useTableSearch } from '~/components/Table/utils'
-import type { ColumnOrdersByBreakpoint } from '~/components/Table/utils'
+import {
+	prepareTableCsv,
+	type ColumnOrdersByBreakpoint,
+	useSortColumnOrders,
+	useTableSearch
+} from '~/components/Table/utils'
 import { TokenLogo } from '~/components/TokenLogo'
 import { Tooltip } from '~/components/Tooltip'
-import { getCategoryRoute } from '~/constants'
 import { chainCharts } from '~/containers/ChainOverview/constants'
 import { protocolCharts } from '~/containers/ProtocolOverview/constants'
+import { getCategoryRoute } from '~/containers/ProtocolTaxonomy/categoryRoutes'
 import { useLocalStorageSettingsManager } from '~/contexts/LocalStorage'
 import { setStorageItem } from '~/contexts/localStorageStore'
 import { addFeeExtrasToRowTotals, hasEnabledFeeExtras, isFeeExtraEligibleAdapterMetric } from '~/metrics/feeExtras'
 import { definitions } from '~/public/definitions'
-import { formattedNum, slug, getAnnualizedRatio } from '~/utils'
+import { formattedNum, slug, getMarketCapToAnnualizedMetricRatio } from '~/utils'
 import { parseExcludeParam } from '~/utils/routerQuery'
 import { AdapterByChainChart } from './ChainChart'
 import type { IAdapterByChainPageData, IProtocol } from './types'
@@ -154,8 +158,8 @@ export function AdapterByChain(props: IProps) {
 			for (const p of protocols) {
 				const adjustedProtocol = addFeeExtrasToRowTotals(p, enabledSettings)
 				const pfOrPs =
-					adjustedProtocol.mcap != null && adjustedProtocol.total30d != null
-						? getAnnualizedRatio(adjustedProtocol.mcap, adjustedProtocol.total30d)
+					adjustedProtocol.mcap != null && adjustedProtocol.annualized1y != null
+						? getMarketCapToAnnualizedMetricRatio(adjustedProtocol.mcap, adjustedProtocol.annualized1y)
 						: null
 
 				let childProtocols: IProtocol['childProtocols'] = p.childProtocols
@@ -164,8 +168,8 @@ export function AdapterByChain(props: IProps) {
 					for (const cp of p.childProtocols) {
 						const adjustedChildProtocol = addFeeExtrasToRowTotals(cp, enabledSettings)
 						const cpPfOrPs =
-							adjustedChildProtocol.mcap != null && adjustedChildProtocol.total30d != null
-								? getAnnualizedRatio(adjustedChildProtocol.mcap, adjustedChildProtocol.total30d)
+							adjustedChildProtocol.mcap != null && adjustedChildProtocol.annualized1y != null
+								? getMarketCapToAnnualizedMetricRatio(adjustedChildProtocol.mcap, adjustedChildProtocol.annualized1y)
 								: null
 
 						childProtocols.push({

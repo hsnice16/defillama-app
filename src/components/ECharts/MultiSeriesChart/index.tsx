@@ -5,6 +5,7 @@ import { useChartCleanup } from '~/hooks/useChartCleanup'
 import { useChartResize } from '~/hooks/useChartResize'
 import { ChartContainer } from '../ChartContainer'
 import { formatTooltipValue } from '../formatters'
+import { METRIC_UNIT_GROUP_SYMBOL, resolveSeriesAxisLayout } from '../metricGroups'
 import { useDefaults } from '../useDefaults'
 import { isIconUrlValid, mergeDeep, validateIconUrl } from '../utils'
 
@@ -186,46 +187,38 @@ export default function MultiSeriesChart({
 
 		const { graphic, tooltip, xAxis, yAxis, dataZoom, legend, grid } = settings
 
-		const metricTypes = new Set(processedSeries.flatMap((s: any) => (s.metricType ? [s.metricType] : [])))
-		const uniqueMetricTypes = Array.from(metricTypes)
-
-		const hasExplicitAxisIndex = processedSeries.some((s: any) => s.yAxisIndex != null && s.yAxisIndex > 0)
-		const maxExplicitAxisIndex = hasExplicitAxisIndex
-			? Math.max(...processedSeries.map((s: any) => s.yAxisIndex ?? 0))
-			: 0
-
-		const needMultipleAxes = uniqueMetricTypes.length > 1 || hasExplicitAxisIndex
+		const { needMultipleAxes, axisCount, axisUnitGroups, seriesAxisIndexes } = resolveSeriesAxisLayout(processedSeries)
 
 		let finalYAxis: any = yAxis
 		let seriesWithHallmarks = processedSeries
 
 		if (needMultipleAxes) {
-			const axisCount = Math.max(uniqueMetricTypes.length, maxExplicitAxisIndex + 1, 2)
 			const yAxisBase = yAxis && typeof yAxis === 'object' ? (Array.isArray(yAxis) ? yAxis[0] || {} : yAxis) : {}
 			const yAxisAxisLabel = yAxisBase.axisLabel && typeof yAxisBase.axisLabel === 'object' ? yAxisBase.axisLabel : {}
 			const existingFormatter =
 				typeof yAxisAxisLabel.formatter === 'function' || typeof yAxisAxisLabel.formatter === 'string'
 					? yAxisAxisLabel.formatter
 					: null
-			finalYAxis = Array.from({ length: Math.min(axisCount, 3) }, (_, index) => ({
-				...yAxisBase,
-				axisLabel: {
-					...yAxisAxisLabel,
-					margin: 4,
-					formatter:
-						existingFormatter ?? ((value: number) => formatTooltipValue(value, yAxisSymbols[index] ?? valueSymbol))
-				},
-				position: index === 0 ? 'left' : index === 1 ? 'right' : 'left',
-				offset: index === 2 ? 40 : 0
-			}))
-
-			seriesWithHallmarks = seriesWithHallmarks.map((s: any) => {
-				const axisIndex = s.yAxisIndex ?? uniqueMetricTypes.indexOf(s.metricType)
+			finalYAxis = Array.from({ length: axisCount }, (_, index) => {
+				const axisGroup = axisUnitGroups[index]
+				const fallbackSymbol = axisGroup != null ? METRIC_UNIT_GROUP_SYMBOL[axisGroup] : valueSymbol
 				return {
-					...s,
-					yAxisIndex: Math.min(axisIndex >= 0 ? axisIndex : 0, 2)
+					...yAxisBase,
+					axisLabel: {
+						...yAxisAxisLabel,
+						margin: 4,
+						formatter:
+							existingFormatter ?? ((value: number) => formatTooltipValue(value, yAxisSymbols[index] ?? fallbackSymbol))
+					},
+					position: index === 0 ? 'left' : index === 1 ? 'right' : 'left',
+					offset: index === 2 ? 40 : 0
 				}
 			})
+
+			seriesWithHallmarks = seriesWithHallmarks.map((s: any, index: number) => ({
+				...s,
+				yAxisIndex: seriesAxisIndexes[index]
+			}))
 		}
 
 		const legendRightPadding = needMultipleAxes ? 40 : legend.right

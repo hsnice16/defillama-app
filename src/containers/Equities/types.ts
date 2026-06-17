@@ -1,6 +1,7 @@
 import type { MultiSeriesChart2Dataset, MultiSeriesChart2SeriesConfig } from '~/components/ECharts/types'
 import type {
 	IEquitiesCompanyApiItem,
+	IEquitiesDimensionsResponse,
 	IEquitiesFilingApiItem,
 	IEquitiesMetadataResponse,
 	IEquitiesStatementsResponse,
@@ -18,7 +19,7 @@ export interface IEquitiesListCompanyRow extends IEquitiesCompanyApiItem {
 
 export interface IEquitiesListPageProps {
 	companies: IEquitiesListCompanyRow[]
-	lastUpdatedAt?: string
+	updatedAt?: string
 }
 
 export interface IEquitiesStatementTableRow {
@@ -31,11 +32,14 @@ export interface IEquitiesStatementTableRow {
 
 export interface IEquityTickerPageProps {
 	ticker: string
+	country: string
+	slug: string
 	name: string
 	metadata: IEquitiesMetadataResponse
 	summary: IEquitiesSummaryResponse
 	priceHistoryChart: IEquitiesPriceHistoryChart
 	statements: IEquitiesStatementsResponse
+	dimensions: IEquitiesDimensionsResponse
 	filings: IEquitiesFilingApiItem[]
 	filingForms: string[]
 }

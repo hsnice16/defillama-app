@@ -1,7 +1,7 @@
 import * as Ariakit from '@ariakit/react'
 import { useQuery } from '@tanstack/react-query'
 import type { ColumnOrderState, SortingState, VisibilityState } from '@tanstack/react-table'
-import { lazy, Suspense, useCallback, useMemo, useState } from 'react'
+import { lazy, Suspense, useCallback, useContext, useMemo, useState } from 'react'
 import { Icon } from '~/components/Icon'
 import { useAuthContext } from '~/containers/Subscription/auth'
 import { setSignupSource } from '~/containers/Subscription/signupSource'
@@ -9,8 +9,8 @@ import { setSignupSource } from '~/containers/Subscription/signupSource'
 const SubscribeProModal = lazy(() =>
 	import('~/components/SubscribeCards/SubscribeProCard').then((m) => ({ default: m.SubscribeProModal }))
 )
-import { fetchEquitiesCompanies } from '~/containers/Equities/api'
 import type { IEquitiesCompanyApiItem } from '~/containers/Equities/api.types'
+import { buildEquityTickerCountrySlug } from '~/containers/Equities/utils'
 import { UNIFIED_TABLE_COLUMN_DICTIONARY } from '~/containers/ProDashboard/components/UnifiedTable/config/ColumnDictionary'
 import {
 	UNIFIED_TABLE_PRESETS,
@@ -24,6 +24,8 @@ import type {
 	UnifiedTableConfig
 } from '~/containers/ProDashboard/types'
 import { useProDashboardEditorActions } from '../../../ProDashboardAPIContext'
+import { ProxyAuthTokenContext } from '../../../queries'
+import { fetchEquitiesCompaniesViaProxy } from '../../../services/fetchViaProxy'
 import { AriakitVirtualizedSelect } from '../../AriakitVirtualizedSelect'
 import { EquitiesCompaniesDataset } from '../../datasets/EquitiesDataset/EquitiesCompaniesDataset'
 import { EquitiesFilingsDataset } from '../../datasets/EquitiesDataset/EquitiesFilingsDataset'
@@ -141,21 +143,26 @@ type TableTypeCardIcon =
 	| 'bar-chart-2'
 
 function useEquitiesTickerOptions() {
+	const authToken = useContext(ProxyAuthTokenContext)
 	const { data, isLoading } = useQuery({
 		queryKey: ['pro-dashboard', 'equities-companies-table'],
-		queryFn: fetchEquitiesCompanies,
+		queryFn: () => fetchEquitiesCompaniesViaProxy(authToken!),
+		enabled: Boolean(authToken),
 		staleTime: 5 * 60 * 1000,
 		refetchOnWindowFocus: false
 	})
 
 	const options = useMemo(() => {
 		if (!data) return []
-		return (data as IEquitiesCompanyApiItem[])
-			.sort((a, b) => b.marketCap - a.marketCap)
-			.map((item) => ({
-				value: item.ticker,
-				label: `${item.ticker} — ${item.name}`
-			}))
+		const sortedCompanies = [...(data as IEquitiesCompanyApiItem[])].sort((a, b) => b.marketCap - a.marketCap)
+		const options: Array<{ value: string; label: string }> = []
+		for (const item of sortedCompanies) {
+			options.push({
+				value: buildEquityTickerCountrySlug(item.ticker, item.country),
+				label: `${item.ticker}:${item.country} — ${item.name}`
+			})
+		}
+		return options
 	}, [data])
 
 	return { options, isLoading }

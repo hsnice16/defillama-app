@@ -1,3 +1,12 @@
+/**
+ * Legacy bridge between display names, old API aliases, Dimensions keys, and
+ * internal slugs.
+ *
+ * @deprecated Prefer v2/app metadata APIs that return display-name chain
+ * values. Keep this only for saved ProDashboard configs, Yields mixed chain
+ * rows, LlamaSwap Gecko/swap ids, `/chains` legacy aliases, and Dimensions
+ * `breakdown24h` keys until those flows migrate.
+ */
 type ChainMapping = {
 	display: string
 	dimensions: string
@@ -104,6 +113,7 @@ function normalizeKey(chain: string): string {
 	return chain.toLowerCase().trim()
 }
 
+/** @deprecated See the module note. Prefer display-name values from v2/app metadata APIs. */
 export function toDisplayName(chain: string): string {
 	if (!chain) return chain
 	const key = normalizeKey(chain)
@@ -112,6 +122,7 @@ export function toDisplayName(chain: string): string {
 	return chain
 }
 
+/** @deprecated Dimensions chain keys are only needed by legacy overview `breakdown24h` paths. */
 export function toDimensionsSlug(chain: string): string {
 	if (!chain) return chain
 	const key = normalizeKey(chain)
@@ -120,6 +131,7 @@ export function toDimensionsSlug(chain: string): string {
 	return key.replace(/\s+/g, '_')
 }
 
+/** @deprecated Prefer native/display chain keys from v2/app metadata APIs. */
 export function toInternalSlug(chain: string): string {
 	if (!chain) return chain
 	const key = normalizeKey(chain)
@@ -128,10 +140,12 @@ export function toInternalSlug(chain: string): string {
 	return key.replace(/\s+/g, '-')
 }
 
+/** @deprecated ProDashboard metadata should stop accepting saved legacy aliases after migration. */
 export function getDisplayAliases(displayName: string): string[] {
 	return DISPLAY_TO_ALIASES[displayName] || []
 }
 
+/** @deprecated Use explicit dataset-specific keys instead of broad chain alias matching. */
 export function buildChainMatchSet(chains: string[]): Set<string> {
 	const set = new Set<string>()
 	for (const chain of chains) {
@@ -149,11 +163,13 @@ export function buildChainMatchSet(chains: string[]): Set<string> {
 	return set
 }
 
+/** @deprecated Prefer stored v2/display-name chain values instead of normalizing filters at read time. */
 export function normalizeChainSlug(chain: string | null | undefined): string | null {
 	if (!chain) return null
 	return toInternalSlug(chain)
 }
 
+/** @deprecated Keep only while legacy saved filters can contain these aliases. */
 export const CHAIN_SLUG_ALIASES: Record<string, string> = {
 	optimism: 'op-mainnet',
 	'op mainnet': 'op-mainnet',

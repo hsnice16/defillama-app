@@ -42,6 +42,8 @@ export function filterRowsByConfig(rows: NormalizedRow[], filters?: TableFilters
 	}
 
 	if (filters.chains?.length) {
+		// TODO(chain-normalizer): saved unified-table filters can contain aliases
+		// while rows use chain names. Remove after filters store v2 display names.
 		const chainSet = new Set(filters.chains.map((c) => normalizeChainSlug(c)))
 		filtered = filtered.filter((row) => {
 			const chain = normalizeChainSlug(row.chain)

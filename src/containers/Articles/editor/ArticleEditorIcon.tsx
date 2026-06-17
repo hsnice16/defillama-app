@@ -299,6 +299,23 @@ export function Icon({ name, className = 'h-4 w-4' }: { name: string; className?
 					<path d="M14.5 19a4.5 4.5 0 0 1 6 0" />
 				</svg>
 			)
+		case 'user':
+			return (
+				<svg {...props}>
+					<circle cx="12" cy="8" r="3.5" />
+					<path d="M5.5 20a6.5 6.5 0 0 1 13 0" />
+				</svg>
+			)
+		case 'building':
+			return (
+				<svg {...props}>
+					<path d="M3 21h18" />
+					<path d="M5 21V5a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v16" />
+					<path d="M15 21v-9a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v9" />
+					<line x1="8" y1="8" x2="11" y2="8" />
+					<line x1="8" y1="12" x2="11" y2="12" />
+				</svg>
+			)
 		default:
 			return null
 	}

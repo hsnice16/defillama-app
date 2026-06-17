@@ -359,6 +359,37 @@ export function addRouteTelemetryAttributes(attributes: TelemetryAttributes): vo
 	}
 }
 
+function mutableRoutePhases(context: RouteTelemetryContext): Record<string, number> {
+	const raw = context.attributes.route_phases_ms
+	if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+		return raw as Record<string, number>
+	}
+
+	const phases: Record<string, number> = {}
+	context.attributes.route_phases_ms = phases
+	return phases
+}
+
+export function addRouteTelemetryPhase(label: string, durationMs: number): void {
+	const context = currentTelemetryContext()
+	if (!context) return
+	if (!Number.isFinite(durationMs)) return
+
+	mutableRoutePhases(context)[label] = Math.max(0, Math.round(durationMs))
+}
+
+export function addRouteTelemetryPhases(phases: Record<string, number>): void {
+	const context = currentTelemetryContext()
+	if (!context) return
+
+	const target = mutableRoutePhases(context)
+	for (const [label, durationMs] of Object.entries(phases)) {
+		if (Number.isFinite(durationMs)) {
+			target[label] = Math.max(0, Math.round(durationMs))
+		}
+	}
+}
+
 export function recordTelemetry(event: TelemetryEvent): void {
 	try {
 		if (!telemetryEnabled()) return
@@ -700,7 +731,12 @@ export function withApiRouteTelemetry(route: string, handler: NextApiHandler): N
 		}
 
 		res.json = ((body: unknown) => {
+			const measureStartedAt = Date.now()
 			addResponseBytes(getPayloadBytes(body))
+			addRouteTelemetryAttributes({
+				api_json_response_mode: 'res_json',
+				api_json_measure_ms: Math.max(0, Date.now() - measureStartedAt)
+			})
 			suppressResponseByteCapture = true
 			try {
 				return originalJson.call(res, body)

@@ -9,6 +9,7 @@ import {
 	ONCHAIN_TXS_API
 } from '~/containers/OnchainUsersAndTxs/api'
 import { fetchStablecoinChartApi } from '~/containers/Stablecoins/api'
+import { slug } from '~/utils'
 import { toDisplayName } from '~/utils/chainNormalizer'
 import { fetchWithPoolingOnServer } from '~/utils/http-client'
 import { recordRuntimeError } from '~/utils/telemetry'
@@ -47,6 +48,9 @@ const CHART_METADATA = {
 	chainPrice: { type: 'chainToken' }
 }
 
+// TODO(chain-normalizer): this service accepts saved chart-builder chain values
+// and calls external APIs that historically accepted mixed chain names. Migrate
+// configs and calls to v2 display-name chain values, then remove normalization.
 export default class ChainCharts {
 	private static async fetchAndMergeChains(
 		chains: string[],
@@ -78,6 +82,9 @@ export default class ChainCharts {
 		return []
 	}
 
+	// TODO(chain-normalizer): saved ProDashboard chain chart configs can still
+	// contain legacy/internal chain values. Remove this once chart configs and
+	// external chain chart calls use v2 display-name chain values end to end.
 	private static getChainNames(chain: string): string[] {
 		const displayName = toDisplayName(chain)
 		if (displayName !== chain) {
@@ -182,17 +189,17 @@ export default class ChainCharts {
 	private static async chainAssetsData(chain: string): Promise<[number, number][]> {
 		if (!chain) return []
 
-		const chainNames = this.getChainNames(chain)
+		const chainSlugs = Array.from(new Set(this.getChainNames(chain).map(slug).filter(Boolean)))
 
-		if (chainNames.length === 1) {
-			const data = await fetchChainAssetsChart(chain).catch(() => null)
+		if (chainSlugs.length === 1) {
+			const data = await fetchChainAssetsChart(chainSlugs[0]).catch(() => null)
 			if (!Array.isArray(data)) return []
 			return data.map((item) => [Number(item.timestamp), Number(item.data?.total) || 0])
 		}
 
 		try {
 			const responses = await Promise.all(
-				chainNames.map((chainName) => fetchChainAssetsChart(chainName).catch(() => null))
+				chainSlugs.map((chainSlug) => fetchChainAssetsChart(chainSlug).catch(() => null))
 			)
 			const mergedMap = new Map<number, number>()
 			for (const data of responses) {

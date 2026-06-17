@@ -171,4 +171,19 @@ describe('buildResearchRssFeed', () => {
 		expect(xml).toContain('<dl:entity type="organization">Trust Wallet</dl:entity>')
 		expect(xml.match(/<dl:entity type="person">Felix Fan<\/dl:entity>/g)).toHaveLength(1)
 	})
+
+	it('lists guest authors as structured entities but keeps them out of the dc:creator byline', () => {
+		const xml = buildResearchRssFeed([
+			makeArticle({
+				guestAuthors: [
+					{ name: 'Person A', type: 'Person', url: 'https://person-a.com' },
+					{ name: 'Company B', type: 'Organization' }
+				]
+			})
+		])
+		expect(xml).toContain('<dl:entity type="person">Person A</dl:entity>')
+		expect(xml).toContain('<dl:entity type="organization">Company B</dl:entity>')
+		expect(xml).toContain('<dc:creator>Jane Doe</dc:creator>')
+		expect(xml).not.toContain('Person A</dc:creator>')
+	})
 })

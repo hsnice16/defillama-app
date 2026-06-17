@@ -25,9 +25,17 @@ export function peggedAssetIconUrl(name: string, size: number = 48): string {
 	return `${ICONS_CDN}/pegged/${encodeURIComponent(slug)}?w=${size}&h=${size}`
 }
 
-export function equityIconUrl(symbol: string, size: number = 48): string {
+export function equityIconUrl(symbol: string, country?: string, size: number = 24): string {
+	if (country) {
+		return `/icons/equities/${encodeURIComponent(country.toUpperCase())}/${encodeURIComponent(symbol.toUpperCase())}?w=${size}&h=${size}`
+	}
+
 	// no lowercase
 	return `${ICONS_CDN}/equities/${encodeURIComponent(symbol)}?w=${size}&h=${size}`
+}
+
+export function equityCountryFlagUrl(country: string, size: number = 24): string {
+	return `/icons/equities/${encodeURIComponent(country.toUpperCase())}/flag?w=${size}&h=${size}`
 }
 
 export function geckoTokenIconUrl(nk: string, size: number = 48): string {

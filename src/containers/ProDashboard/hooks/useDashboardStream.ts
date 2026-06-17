@@ -280,7 +280,10 @@ export function useDashboardStream(
 		const startStream = async () => {
 			try {
 				const tokenAtFetch = authTokenRef.current
-				const response = await fetch(`/api/dynamic/dashboard/${dashboardId}/stream`, {
+				const streamUrl = tokenAtFetch
+					? `/api/dynamic/pro-dashboard/${dashboardId}/stream?_=${Date.now()}`
+					: `/api/dynamic/pro-dashboard/${dashboardId}/stream`
+				const response = await fetch(streamUrl, {
 					credentials: 'include',
 					headers: tokenAtFetch ? { Authorization: `Bearer ${tokenAtFetch}` } : undefined,
 					signal: abortController.signal

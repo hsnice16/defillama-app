@@ -1,8 +1,9 @@
 import Head from 'next/head'
-import type { ArticleAuthor, LocalArticleDocument } from './types'
+import type { ArticleAuthor, ArticleGuestAuthor, LocalArticleDocument } from './types'
 import { ARTICLE_SECTION_LABELS, ARTICLE_SECTION_SLUGS } from './types'
 
 const SITE_ORIGIN = 'https://defillama.com'
+const DEFILLAMA_RESEARCH_AUTHOR_URL = `${SITE_ORIGIN}/research/authors/defillama-research`
 
 function toSafeJsonLd(data: unknown): string {
 	return JSON.stringify(data).replace(/</g, '\\u003c')
@@ -42,6 +43,7 @@ export type ArticleSeoAuthor = {
 	url?: string
 	id?: string
 	sameAs?: string[]
+	worksForResearch?: boolean
 }
 
 function articleCanonicalPath(article: LocalArticleDocument): string {
@@ -71,9 +73,9 @@ function socialUrls(profile: ArticleAuthor): string[] {
 function defillamaResearchSeoAuthor(): ArticleSeoAuthor {
 	return {
 		type: 'Organization',
-		id: `${SITE_ORIGIN}/research`,
+		id: DEFILLAMA_RESEARCH_AUTHOR_URL,
 		name: 'DefiLlama Research',
-		url: `${SITE_ORIGIN}/research`,
+		url: DEFILLAMA_RESEARCH_AUTHOR_URL,
 		sameAs: ['https://x.com/DefiLlama', 'https://www.linkedin.com/company/defillama/']
 	}
 }
@@ -85,7 +87,16 @@ function personSeoAuthor(profile: ArticleAuthor): ArticleSeoAuthor {
 		id: url,
 		name: profile.displayName,
 		url,
-		sameAs: socialUrls(profile)
+		sameAs: socialUrls(profile),
+		worksForResearch: true
+	}
+}
+
+function guestSeoAuthor(guest: ArticleGuestAuthor): ArticleSeoAuthor {
+	return {
+		type: guest.type,
+		name: guest.name,
+		...(guest.url ? { url: guest.url } : {})
 	}
 }
 
@@ -93,7 +104,8 @@ function fallbackSeoAuthor(article: LocalArticleDocument): ArticleSeoAuthor {
 	return article.author
 		? {
 				type: 'Person',
-				name: article.author
+				name: article.author,
+				worksForResearch: true
 			}
 		: defillamaResearchSeoAuthor()
 }
@@ -124,6 +136,10 @@ export function getArticleSeoAuthors(article: LocalArticleDocument): ArticleSeoA
 		push(personSeoAuthor(profile))
 	}
 
+	for (const guest of article.guestAuthors ?? []) {
+		push(guestSeoAuthor(guest))
+	}
+
 	return authors
 }
 
@@ -144,10 +160,16 @@ function seoAuthorToJsonLd(author: ArticleSeoAuthor): Record<string, unknown> {
 		name: author.name,
 		...(author.url ? { url: author.url } : {}),
 		...(author.sameAs && author.sameAs.length > 0 ? { sameAs: author.sameAs } : {}),
-		worksFor: {
-			'@type': 'Organization',
-			name: 'DefiLlama Research'
-		}
+		...(author.worksForResearch
+			? {
+					worksFor: {
+						'@type': 'Organization',
+						'@id': DEFILLAMA_RESEARCH_AUTHOR_URL,
+						name: 'DefiLlama Research',
+						url: DEFILLAMA_RESEARCH_AUTHOR_URL
+					}
+				}
+			: {})
 	}
 }
 

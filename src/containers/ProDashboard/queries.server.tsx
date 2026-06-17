@@ -1,7 +1,7 @@
 import { CONFIG_API, FEATURES_SERVER } from '~/constants'
 import { fetchChainsList } from '~/containers/Chains/api'
+import type { ChainMetrics } from '~/containers/ProDashboard/server/unifiedTable/protocols'
 import { fetchProtocols } from '~/containers/ProtocolLists/api'
-import type { ChainMetrics } from '~/server/unifiedTable/protocols'
 import { sluggifyProtocol } from '~/utils/cache-client'
 import { toDisplayName } from '~/utils/chainNormalizer'
 import { fetchWithPoolingOnServer } from '~/utils/http-client'
@@ -66,6 +66,8 @@ export async function fetchProtocolsAndChains(): Promise<{ protocols: any[]; cha
 	try {
 		const [protocolsData, chainsData] = await Promise.all([fetchProtocols(), fetchChainsList()])
 
+		// TODO(chain-normalizer): chain metadata still comes from /chains here.
+		// Prefer v2/app metadata display names before removing alias support.
 		const transformedChains = chainsData.map((chain: any) => ({
 			...chain,
 			name: toDisplayName(chain.name)

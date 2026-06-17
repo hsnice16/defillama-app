@@ -29,13 +29,13 @@ import {
 	type HolderFlowSummary,
 	type HolderWithChange
 } from '~/containers/Yields/queries/holderUtils'
+import type { YieldPoolPageData } from '~/containers/Yields/server/dataset.types'
 import { StabilityCell } from '~/containers/Yields/Tables/StabilityCell'
 import type { IYieldTableRow } from '~/containers/Yields/Tables/types'
 import { useYieldsUpgradePrompt } from '~/containers/Yields/Tables/useYieldsUpgradePrompt'
 import { useGetChartInstance } from '~/hooks/useGetChartInstance'
 import { useIsClient } from '~/hooks/useIsClient'
 import Layout from '~/layout'
-import type { YieldPoolPageData } from '~/server/datasetCache/runtime/yields.types'
 import { formattedNum } from '~/utils'
 import { getBlockExplorerNew } from '~/utils/blockExplorers'
 import { jitterCacheControlHeader, maxAgeForNext } from '~/utils/maxAgeForNext'
@@ -63,7 +63,7 @@ const getServerSidePropsHandler: GetServerSideProps<YieldPoolPageProps> = async 
 		return { notFound: true }
 	}
 
-	const { getYieldPoolPageData } = await import('~/server/datasetCache/runtime/yields')
+	const { getYieldPoolPageData } = await import('~/containers/Yields/server/dataset')
 	const result = await getYieldPoolPageData(poolId)
 
 	if (!result.data) {
@@ -102,8 +102,22 @@ const tvlApyCharts = [
 const tvlApyChartOptions = { tooltip: { formatter: formatTvlApyTooltip } }
 
 const BASE_REWARD_BAR_CHARTS: IMultiSeriesChart2Props['charts'] = [
-	{ type: 'bar', name: 'Base', encode: { x: 'timestamp', y: 'Base' }, stack: 'a', color: CHART_COLORS[0] },
-	{ type: 'bar', name: 'Reward', encode: { x: 'timestamp', y: 'Reward' }, stack: 'a', color: CHART_COLORS[1] }
+	{
+		type: 'bar',
+		name: 'Base',
+		encode: { x: 'timestamp', y: 'Base' },
+		stack: 'a',
+		color: CHART_COLORS[0],
+		large: false
+	},
+	{
+		type: 'bar',
+		name: 'Reward',
+		encode: { x: 'timestamp', y: 'Reward' },
+		stack: 'a',
+		color: CHART_COLORS[1],
+		large: false
+	}
 ]
 
 const SINGLE_APY_LINE_CHARTS: IMultiSeriesChart2Props['charts'] = [

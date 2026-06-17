@@ -45,8 +45,8 @@ export function Menu({ options, name, isExternal, onItemClick, className, portal
 					<Icon name="x" className="size-5" />
 				</Ariakit.PopoverDismiss>
 
-				{_options.map((value, i) => {
-					return onItemClick ? (
+				{_options.map((value, i) =>
+					onItemClick ? (
 						<Ariakit.MenuItem
 							key={value + i}
 							onClick={() => onItemClick(value)}
@@ -71,7 +71,7 @@ export function Menu({ options, name, isExternal, onItemClick, className, portal
 							{value}
 						</Ariakit.MenuItem>
 					)
-				})}
+				)}
 			</Ariakit.Menu>
 		</Ariakit.MenuProvider>
 	)

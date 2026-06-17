@@ -306,11 +306,17 @@ const SOURCES = {
 		return [...slugs]
 	},
 	equityTickers: async () => {
-		const r = await fetchJson('https://api.llama.fi/equities/v1/companies')
-		return (Array.isArray(r) ? r : [])
-			.map((c) => c && c.ticker)
-			.filter(Boolean)
-			.map((t) => t.toLowerCase())
+		const equitiesCompaniesUrl = process.env.API_KEY
+			? `https://pro-api.llama.fi/${process.env.API_KEY}/equities/v1/companies`
+			: 'https://api.llama.fi/equities/v1/companies'
+		const r = await fetchJson(equitiesCompaniesUrl)
+		const tickers = []
+		if (Array.isArray(r)) {
+			for (const company of r) {
+				if (company && company.ticker) tickers.push(`${company.ticker}:${company.country || 'US'}`.toLowerCase())
+			}
+		}
+		return tickers
 	},
 	liquidationsProtocols: async () => {
 		const r = await fetchJson('https://api.llama.fi/liquidations/all')
@@ -435,7 +441,10 @@ function sluggify(name) {
 
 async function fetchJson(url) {
 	const res = await fetch(url, { headers: { 'user-agent': 'defillama-latency-urls/1.0' } })
-	if (!res.ok) throw new Error(`${url} -> HTTP ${res.status}`)
+	if (!res.ok) {
+		const sanitizedUrl = process.env.API_KEY ? url.replace(process.env.API_KEY, '<api-key>') : url
+		throw new Error(`${sanitizedUrl} -> HTTP ${res.status}`)
+	}
 	return res.json()
 }
 

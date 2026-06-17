@@ -2,8 +2,12 @@ import { useQuery } from '@tanstack/react-query'
 import * as React from 'react'
 import { useContext, useMemo, useState } from 'react'
 import { Icon } from '~/components/Icon'
-import { fetchEquitiesStatements } from '~/containers/Equities/api'
 import type { IEquitiesStatementsResponse } from '~/containers/Equities/api.types'
+import {
+	buildEquityTickerCountrySlug,
+	formatEquitiesDate,
+	parseEquityTickerCountryParam
+} from '~/containers/Equities/utils'
 import { ProxyAuthTokenContext, StreamDoneContext } from '~/containers/ProDashboard/queries'
 import { fetchEquitiesStatementsViaProxy } from '~/containers/ProDashboard/services/fetchViaProxy'
 import { abbreviateNumber } from '~/utils'
@@ -54,41 +58,53 @@ function buildStatementRows(
 	const section = statements[statementSectionMap[statementType]]
 	const periodData = section[periodKeyMap[periodType]]
 	const childrenMeta = section.children[periodKeyMap[periodType]]
+	const rows: StatementTableRow[] = []
 
-	return section.labels.map((label, rowIndex) => {
+	for (let rowIndex = 0; rowIndex < section.labels.length; rowIndex++) {
+		const label = section.labels[rowIndex]
 		const childLabels = childrenMeta[label]?.labels ?? []
 		const childValues = periodData.children[label]?.values ?? []
+		let subRows: StatementTableRow[] | undefined
 
-		return {
+		if (childLabels.length > 0) {
+			subRows = []
+			for (let childIndex = 0; childIndex < childLabels.length; childIndex++) {
+				const childLabel = childLabels[childIndex]
+				subRows.push({
+					id: `${label}-${childLabel}`,
+					label: childLabel,
+					values: childValues[childIndex] ?? [],
+					depth: 1
+				})
+			}
+		}
+
+		rows.push({
 			id: label,
 			label,
 			values: periodData.values[rowIndex] ?? [],
 			depth: 0,
-			subRows:
-				childLabels.length > 0
-					? childLabels.map((childLabel, childIndex) => ({
-							id: `${label}-${childLabel}`,
-							label: childLabel,
-							values: childValues[childIndex] ?? [],
-							depth: 1
-						}))
-					: undefined
-		}
+			subRows
+		})
+	}
+
+	return rows
+}
+
+function getHeaderIndexes(periodEnding: string[]): number[] {
+	const indexes: number[] = []
+	for (let index = 0; index < periodEnding.length; index++) {
+		indexes.push(index)
+	}
+	return indexes.sort((a, b) => {
+		const aTime = new Date(`${periodEnding[a] ?? ''}T00:00:00Z`).getTime()
+		const bTime = new Date(`${periodEnding[b] ?? ''}T00:00:00Z`).getTime()
+		return bTime - aTime
 	})
 }
 
-function getHeaderIndexes(periods: string[], periodEnding: string[]): number[] {
-	return periods
-		.map((_, index) => index)
-		.sort((a, b) => {
-			const aTime = new Date(`${periodEnding[a] ?? ''}T00:00:00Z`).getTime()
-			const bTime = new Date(`${periodEnding[b] ?? ''}T00:00:00Z`).getTime()
-			return bTime - aTime
-		})
-}
-
-function formatStatementPeriodLabel(period: string): string {
-	return period.replaceAll('-', ' ')
+function formatStatementPeriodLabel(periodEnding: string): string {
+	return formatEquitiesDate(periodEnding)
 }
 
 function flattenStatementRows(rows: StatementTableRow[]): StatementTableRow[] {
@@ -180,19 +196,19 @@ const STALE_TIME = 5 * 60 * 1000
 function useEquitiesStatementsData(ticker: string) {
 	const authToken = useContext(ProxyAuthTokenContext)
 	const streamDone = useContext(StreamDoneContext)
+	const tickerCountry = parseEquityTickerCountryParam(ticker)
+	const queryTicker = tickerCountry ? buildEquityTickerCountrySlug(tickerCountry.ticker, tickerCountry.country) : ticker
 
 	return useQuery({
-		queryKey: ['pro-dashboard', 'equities-statements-table', ticker],
+		queryKey: ['pro-dashboard', 'equities-statements-table', queryTicker],
 		queryFn: async () => {
-			if (authToken) {
-				return fetchEquitiesStatementsViaProxy(ticker, authToken)
-			}
-			return fetchEquitiesStatements(ticker)
+			if (!tickerCountry) throw new Error('Missing ticker param')
+			return fetchEquitiesStatementsViaProxy(tickerCountry.ticker, tickerCountry.country, authToken!)
 		},
 		staleTime: STALE_TIME,
 		refetchOnWindowFocus: false,
 		retry: 1,
-		enabled: Boolean(ticker) && streamDone
+		enabled: Boolean(tickerCountry) && Boolean(authToken) && streamDone
 	})
 }
 
@@ -210,10 +226,7 @@ export function EquitiesFinancialsDataset({ ticker }: { ticker: string }) {
 		[statements, statementType, periodType]
 	)
 
-	const headerIndexes = useMemo(
-		() => (periodData ? getHeaderIndexes(periodData.periods, periodData.periodEnding) : []),
-		[periodData]
-	)
+	const headerIndexes = useMemo(() => (periodData ? getHeaderIndexes(periodData.periodEnding) : []), [periodData])
 
 	const hasAnyBreakdownRows = rows.some((row) => (row.subRows?.length ?? 0) > 0)
 
@@ -293,16 +306,20 @@ export function EquitiesFinancialsDataset({ ticker }: { ticker: string }) {
 						</div>
 						<ProTableCSVButton
 							onClick={() => {
-								const headers = [
-									'"Name"',
-									...headerIndexes.map((index) => `"${formatStatementPeriodLabel(periodData!.periods[index])}"`)
-								]
+								const headers = ['"Name"']
+								for (const index of headerIndexes) {
+									headers.push(`"${formatStatementPeriodLabel(periodData!.periodEnding[index])}"`)
+								}
 								const flattenedRows = flattenStatementRows(rows)
-								const csvRows = flattenedRows.map((row) => [
-									`"${row.depth > 0 ? '  ' + row.label : row.label}"`,
-									...headerIndexes.map((index) => row.values[index] ?? '')
-								])
-								const csv = [headers.join(','), ...csvRows.map((row) => row.join(','))].join('\n')
+								const csvRows: string[] = []
+								for (const row of flattenedRows) {
+									const csvRow: Array<string | number> = [`"${row.depth > 0 ? '  ' + row.label : row.label}"`]
+									for (const index of headerIndexes) {
+										csvRow.push(row.values[index] ?? '')
+									}
+									csvRows.push(csvRow.join(','))
+								}
+								const csv = [headers.join(','), ...csvRows].join('\n')
 								downloadCSV(
 									`equities-${ticker}-${statementType.toLowerCase().replaceAll(' ', '-')}-${periodType.toLowerCase()}.csv`,
 									csv,
@@ -323,10 +340,10 @@ export function EquitiesFinancialsDataset({ ticker }: { ticker: string }) {
 							</th>
 							{headerIndexes.map((index) => (
 								<th
-									key={`${statementType}-${periodType}-${periodData!.periods[index]}`}
+									key={`${statementType}-${periodType}-${periodData!.periodEnding[index]}`}
 									className="min-w-[132px] overflow-hidden border border-black/10 bg-(--app-bg) p-2 text-left font-semibold text-ellipsis whitespace-nowrap dark:border-white/10"
 								>
-									{formatStatementPeriodLabel(periodData!.periods[index])}
+									{formatStatementPeriodLabel(periodData!.periodEnding[index])}
 								</th>
 							))}
 						</tr>

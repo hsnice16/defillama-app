@@ -1,6 +1,10 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { useFetchProtocolChartsByKeys, useFetchProtocolTVLChart } from '../queries.client'
+import {
+	useFetchProtocolActivityChart,
+	useFetchProtocolChartsByKeys,
+	useFetchProtocolTVLChart
+} from '../queries.client'
 
 type CapturedQueryOptions = {
 	queryKey: unknown[]
@@ -96,6 +100,16 @@ function ChartBatchProbe({
 	return null
 }
 
+function ActivityChartProbe({ protocol }: { protocol: string | null }) {
+	useFetchProtocolActivityChart({
+		queryKey: 'active-users',
+		protocol,
+		adapterType: 'active-users'
+	})
+
+	return null
+}
+
 describe('ProtocolOverview client chart queries', () => {
 	beforeEach(() => {
 		vi.clearAllMocks()
@@ -117,18 +131,18 @@ describe('ProtocolOverview client chart queries', () => {
 			undefined
 		])
 		expect(mocks.fetchJson).toHaveBeenCalledWith(
-			'/api/public/charts/protocol?kind=tvl&protocol=curve-dex&key=pool2&currency=ETH'
+			'/api/public/protocols/charts?kind=tvl&protocol=curve-dex&key=pool2&currency=ETH'
 		)
 	})
 
 	it.each([
 		{
 			breakdownType: 'chain-breakdown' as const,
-			expectedUrl: '/api/public/charts/protocol?kind=tvl&protocol=curve-dex&key=borrowed&breakdownType=chain-breakdown'
+			expectedUrl: '/api/public/protocols/charts?kind=tvl&protocol=curve-dex&key=borrowed&breakdownType=chain-breakdown'
 		},
 		{
 			breakdownType: 'token-breakdown' as const,
-			expectedUrl: '/api/public/charts/protocol?kind=tvl&protocol=curve-dex&key=borrowed&breakdownType=token-breakdown'
+			expectedUrl: '/api/public/protocols/charts?kind=tvl&protocol=curve-dex&key=borrowed&breakdownType=token-breakdown'
 		}
 	])('builds the current protocol TVL $breakdownType query', ({ breakdownType, expectedUrl }) => {
 		renderToStaticMarkup(<TVLChartProbe protocol="curve-dex" chartKey="borrowed" breakdownType={breakdownType} />)
@@ -155,18 +169,18 @@ describe('ProtocolOverview client chart queries', () => {
 			['tvl-chart', 'tvl-chart', 'tvl-chart']
 		])
 		expect(mocks.fetchJson.mock.calls.map(([url]) => url)).toEqual([
-			'/api/public/charts/protocol?kind=tvl&protocol=aave',
-			'/api/public/charts/protocol?kind=tvl&protocol=aave&key=pool2',
-			'/api/public/charts/protocol?kind=tvl&protocol=aave&key=staking',
-			'/api/public/charts/protocol?kind=tvl&protocol=aave&breakdownType=chain-breakdown',
-			'/api/public/charts/protocol?kind=tvl&protocol=aave&key=pool2&breakdownType=chain-breakdown',
-			'/api/public/charts/protocol?kind=tvl&protocol=aave&key=staking&breakdownType=chain-breakdown',
-			'/api/public/charts/protocol?kind=tvl&protocol=aave&breakdownType=token-breakdown',
-			'/api/public/charts/protocol?kind=tvl&protocol=aave&key=pool2&breakdownType=token-breakdown',
-			'/api/public/charts/protocol?kind=tvl&protocol=aave&key=staking&breakdownType=token-breakdown',
-			'/api/public/charts/protocol?kind=tvl&protocol=aave&currency=token&breakdownType=token-breakdown',
-			'/api/public/charts/protocol?kind=tvl&protocol=aave&key=pool2&currency=token&breakdownType=token-breakdown',
-			'/api/public/charts/protocol?kind=tvl&protocol=aave&key=staking&currency=token&breakdownType=token-breakdown'
+			'/api/public/protocols/charts?kind=tvl&protocol=aave',
+			'/api/public/protocols/charts?kind=tvl&protocol=aave&key=pool2',
+			'/api/public/protocols/charts?kind=tvl&protocol=aave&key=staking',
+			'/api/public/protocols/charts?kind=tvl&protocol=aave&breakdownType=chain-breakdown',
+			'/api/public/protocols/charts?kind=tvl&protocol=aave&key=pool2&breakdownType=chain-breakdown',
+			'/api/public/protocols/charts?kind=tvl&protocol=aave&key=staking&breakdownType=chain-breakdown',
+			'/api/public/protocols/charts?kind=tvl&protocol=aave&breakdownType=token-breakdown',
+			'/api/public/protocols/charts?kind=tvl&protocol=aave&key=pool2&breakdownType=token-breakdown',
+			'/api/public/protocols/charts?kind=tvl&protocol=aave&key=staking&breakdownType=token-breakdown',
+			'/api/public/protocols/charts?kind=tvl&protocol=aave&currency=token&breakdownType=token-breakdown',
+			'/api/public/protocols/charts?kind=tvl&protocol=aave&key=pool2&currency=token&breakdownType=token-breakdown',
+			'/api/public/protocols/charts?kind=tvl&protocol=aave&key=staking&currency=token&breakdownType=token-breakdown'
 		])
 	})
 
@@ -180,8 +194,8 @@ describe('ProtocolOverview client chart queries', () => {
 			['protocol-overview', 'treasury-chart', 'makerdao', 'ownTokens', undefined, undefined]
 		])
 		expect(mocks.fetchJson.mock.calls.map(([url]) => url)).toEqual([
-			'/api/public/charts/protocol?kind=treasury&protocol=makerdao&key=ownTokens',
-			'/api/public/charts/protocol?kind=treasury&protocol=makerdao&key=ownTokens&breakdownType=chain-breakdown'
+			'/api/public/protocols/charts?kind=treasury&protocol=makerdao&key=ownTokens',
+			'/api/public/protocols/charts?kind=treasury&protocol=makerdao&key=ownTokens&breakdownType=chain-breakdown'
 		])
 	})
 
@@ -191,5 +205,20 @@ describe('ProtocolOverview client chart queries', () => {
 		expect(mocks.queryOptions).toHaveLength(1)
 		expect(mocks.queryOptions[0].enabled).toBe(false)
 		expect(mocks.fetchJson).not.toHaveBeenCalled()
+	})
+
+	it('normalizes protocol activity chart rows to sorted millisecond timestamps', async () => {
+		mocks.fetchJson.mockResolvedValue([
+			[1_700_000_100, 2],
+			[1_700_000_000, 1]
+		])
+
+		renderToStaticMarkup(<ActivityChartProbe protocol="curve-dex" />)
+
+		expect(mocks.queryOptions[0].queryKey).toEqual(['protocol-overview', 'active-users', 'curve-dex'])
+		await expect(mocks.queryOptions[0].queryFn()).resolves.toEqual([
+			[1_700_000_000_000, 1],
+			[1_700_000_100_000, 2]
+		])
 	})
 })

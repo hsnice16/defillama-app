@@ -2,15 +2,15 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { IYieldTableRow } from '~/containers/Yields/Tables/types'
-import { DATASET_DOMAINS, type DatasetManifest, writeDatasetManifest, writeJsonFile } from '../core'
 import {
 	getTokenYieldsRowsFromCache,
 	getYieldsConfigPath,
 	getYieldsLendBorrowPath,
 	getYieldsRowsPath,
 	getYieldsTokenIndexPath
-} from '../yields'
+} from '~/containers/Yields/server/dataset.cache'
+import type { IYieldTableRow } from '~/containers/Yields/Tables/types'
+import { DATASET_DOMAINS, type DatasetManifest, writeDatasetManifest, writeJsonFile } from '../core'
 
 function createDatasetManifestDomains(): DatasetManifest['domains'] {
 	const domains = {} as DatasetManifest['domains']
@@ -64,7 +64,7 @@ describe('dataset cache yields reader', () => {
 		vi.stubEnv('DATASET_CACHE_DIR', tempDir)
 		await writeDatasetManifest(
 			{
-				artifactVersion: 2,
+				artifactVersion: 4,
 				builtAt: Date.now(),
 				domains: createDatasetManifestDomains()
 			},

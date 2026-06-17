@@ -6,7 +6,7 @@ import { getCache, type RedisCachePayload, setCache, setPageBuildTimes } from '.
 import { normalizeError } from './error'
 import { fetchWithPoolingOnServer } from './http-client'
 import {
-	addRouteTelemetryAttributes,
+	addRouteTelemetryPhases,
 	buildStaticRouteRequestPath,
 	staticRouteTelemetryAttributes,
 	recordRuntimeError,
@@ -50,7 +50,7 @@ export function createRoutePhaseTimer(): RoutePhaseTimer {
 			return () => recordElapsed(label, startedAt)
 		},
 		record(): void {
-			addRouteTelemetryAttributes({ route_phases_ms: { ...phases } })
+			addRouteTelemetryPhases(phases)
 		},
 		timings(): Record<string, number> {
 			return { ...phases }

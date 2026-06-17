@@ -1,5 +1,6 @@
 import { lazy, memo, Suspense, useCallback, useMemo, useState } from 'react'
 import { ChartPngExportButton } from '~/components/ButtonStyled/ChartPngExportButton'
+import { getMetricUnitGroup } from '~/components/ECharts/metricGroups'
 import { Icon } from '~/components/Icon'
 import { Select } from '~/components/Select/Select'
 import { Tooltip } from '~/components/Tooltip'
@@ -380,12 +381,10 @@ const MultiChartCard = memo(function MultiChartCard({ multi }: MultiChartCardPro
 	const isAllLoading = loadingItems.length === multi.items.length
 
 	const uniqueMetricTypes = new Set(validItems.map((item) => item.type))
-	const percentMetricTypes = new Set(['medianApy'])
-	const countMetricTypes = new Set(['txs', 'users', 'activeUsers', 'newUsers', 'gasUsed'])
-	const ratioMetricTypes = new Set(['pfRatio', 'psRatio'])
-	const allPercentMetrics = series.length > 0 && series.every((s: any) => percentMetricTypes.has(s.metricType))
-	const allCountMetrics = series.length > 0 && series.every((s: any) => countMetricTypes.has(s.metricType))
-	const allRatioMetrics = series.length > 0 && series.every((s: any) => ratioMetricTypes.has(s.metricType))
+	const allPercentMetrics =
+		series.length > 0 && series.every((s: any) => getMetricUnitGroup(s.metricType) === 'percent')
+	const allCountMetrics = series.length > 0 && series.every((s: any) => getMetricUnitGroup(s.metricType) === 'count')
+	const allRatioMetrics = series.length > 0 && series.every((s: any) => getMetricUnitGroup(s.metricType) === 'ratio')
 	const hasMultipleMetrics = uniqueMetricTypes.size > 1
 
 	const allChartsGroupable = multi.items.every((item) => {

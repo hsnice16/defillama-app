@@ -1,69 +1,78 @@
-// import type { GetStaticPropsContext, InferGetStaticPropsType } from 'next'
-// import { SKIP_BUILD_STATIC_GENERATION } from '~/constants'
-// import { getEquitiesTickerPageData } from '~/containers/Equities/queries'
-// import { EquityTickerPage } from '~/containers/Equities/TickerPage'
-// import Layout from '~/layout'
-// import { maxAgeForNext } from '~/utils/maxAgeForNext'
-// import { withPerformanceLogging } from '~/utils/perf'
+import type { GetStaticPropsContext, InferGetStaticPropsType } from 'next'
+import { SKIP_BUILD_STATIC_GENERATION } from '~/constants'
+import {
+	getEquitiesTickerPageData,
+	getEquitiesTickerPaths,
+	getEquitiesTickerRedirectSlug
+} from '~/containers/Equities/queries'
+import { EquityTickerPage } from '~/containers/Equities/TickerPage'
+import { parseEquityTickerCountrySlug } from '~/containers/Equities/utils'
+import Layout from '~/layout'
+import { maxAgeForNext } from '~/utils/maxAgeForNext'
+import { withPerformanceLogging } from '~/utils/perf'
 
-import { TemporarilyDisabledPage } from '~/components/TemporarilyDisabledPage'
+export const getStaticProps = withPerformanceLogging(
+	'equities/[ticker]',
+	async ({ params }: GetStaticPropsContext<{ ticker: string }>) => {
+		if (!params?.ticker) {
+			return { notFound: true }
+		}
 
-// export const getStaticProps = withPerformanceLogging(
-// 	'equities/[ticker]',
-// 	async ({ params }: GetStaticPropsContext<{ ticker: string }>) => {
-// 		if (!params?.ticker) {
-// 			return { notFound: true }
-// 		}
+		const tickerCountry = parseEquityTickerCountrySlug(params.ticker)
 
-// 		const props = await getEquitiesTickerPageData(params.ticker)
+		if (!tickerCountry) {
+			const redirectSlug = await getEquitiesTickerRedirectSlug(params.ticker)
+			if (!redirectSlug) return { notFound: true }
 
-// 		if (!props) {
-// 			return { notFound: true }
-// 		}
+			return {
+				redirect: {
+					destination: `/equities/${redirectSlug}`,
+					permanent: false
+				}
+			}
+		}
 
-// 		return {
-// 			props,
-// 			revalidate: maxAgeForNext([5])
-// 		}
-// 	}
-// )
+		const props = await getEquitiesTickerPageData(tickerCountry.ticker, tickerCountry.country)
 
-// export async function getStaticPaths() {
-// 	if (SKIP_BUILD_STATIC_GENERATION) {
-// 		return {
-// 			paths: [],
-// 			fallback: 'blocking'
-// 		}
-// 	}
+		if (!props) {
+			return { notFound: true }
+		}
 
-// 	// const tickers = await getEquitiesTickerPaths()
-// 	return {
-// 		paths: [],
-// 		fallback: 'blocking'
-// 	}
-// }
+		return {
+			props,
+			revalidate: maxAgeForNext([5])
+		}
+	}
+)
 
-// export default function EquityTickerDetailPage(props: InferGetStaticPropsType<typeof getStaticProps>) {
-// 	return (
-// 		<Layout
-// 			title={`${props.name} (${props.ticker}) Stock Overview - DefiLlama`}
-// 			description={`Track ${props.name} (${props.ticker}) price history, financial statements, key metrics, and SEC filings on DefiLlama.`}
-// 			canonicalUrl={`/equities/${props.ticker.toLowerCase()}`}
-// 		>
-// 			<EquityTickerPage {...props} />
-// 		</Layout>
-// 	)
-// }
+export async function getStaticPaths() {
+	if (SKIP_BUILD_STATIC_GENERATION) {
+		return {
+			paths: [],
+			fallback: 'blocking'
+		}
+	}
 
-export default function EquityTickerDetailPage() {
+	const tickers = await getEquitiesTickerPaths()
+	const paths: Array<{ params: { ticker: string } }> = []
+	for (const ticker of tickers) {
+		paths.push({ params: { ticker } })
+	}
+
+	return {
+		paths,
+		fallback: 'blocking'
+	}
+}
+
+export default function EquityTickerDetailPage(props: InferGetStaticPropsType<typeof getStaticProps>) {
 	return (
-		<TemporarilyDisabledPage
-			title="Equities"
-			description="This page is temporarily disabled and will be back shortly."
-			canonicalUrl="/equities/[ticker]"
+		<Layout
+			title={`${props.name} (${props.ticker}:${props.country}) Stock Overview - DefiLlama`}
+			description={`Track ${props.name} (${props.ticker}:${props.country}) price history, financial statements, key metrics, fundamentals, and SEC filings on DefiLlama.`}
+			canonicalUrl={`/equities/${props.slug}`}
 		>
-			<p>Equity ticker data is not available on DefiLlama for the time being.</p>
-			<p>We&apos;re working on bringing this page back in a future update.</p>
-		</TemporarilyDisabledPage>
+			<EquityTickerPage {...props} />
+		</Layout>
 	)
 }

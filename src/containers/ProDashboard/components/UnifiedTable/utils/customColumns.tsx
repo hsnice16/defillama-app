@@ -1,7 +1,7 @@
 import type { ColumnDef, Row } from '@tanstack/react-table'
 import { Parser } from 'expr-eval'
 import { PercentChange } from '~/components/PercentChange'
-import type { ChainMetrics } from '~/server/unifiedTable/protocols'
+import type { ChainMetrics } from '~/containers/ProDashboard/server/unifiedTable/protocols'
 import { formattedNum } from '~/utils'
 import type { CustomColumnDefinition } from '../../../types'
 import { UNIFIED_TABLE_COLUMN_DICTIONARY } from '../config/ColumnDictionary'

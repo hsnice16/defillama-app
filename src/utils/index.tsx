@@ -77,22 +77,22 @@ const toK = (num: number): string => {
 	const len = stringifiedNum.length
 
 	if (len >= 4 && len <= 6) {
-		return (+stringifiedNum / 1_000).toLocaleString(undefined, { maximumFractionDigits: 2 }) + 'k'
+		return (+stringifiedNum / 1_000).toLocaleString('en-US', { maximumFractionDigits: 2 }) + 'k'
 	}
 
 	if (len >= 7 && len <= 9) {
-		return (+stringifiedNum / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 }) + 'm'
+		return (+stringifiedNum / 1_000_000).toLocaleString('en-US', { maximumFractionDigits: 2 }) + 'm'
 	}
 
 	if (len >= 10 && len <= 12) {
-		return (+stringifiedNum / 1_000_000_000).toLocaleString(undefined, { maximumFractionDigits: 3 }) + 'b'
+		return (+stringifiedNum / 1_000_000_000).toLocaleString('en-US', { maximumFractionDigits: 3 }) + 'b'
 	}
 
 	if (len > 12) {
-		return (+stringifiedNum / 1_000_000_000_000).toLocaleString(undefined, { maximumFractionDigits: 3 }) + 't'
+		return (+stringifiedNum / 1_000_000_000_000).toLocaleString('en-US', { maximumFractionDigits: 3 }) + 't'
 	}
 
-	return num.toLocaleString(undefined, {
+	return num.toLocaleString('en-US', {
 		maximumFractionDigits: num > 0.1 ? 1 : num > 0.01 ? 2 : num > 0.0001 ? 3 : 5
 	})
 }
@@ -290,17 +290,17 @@ export const formattedNum = (number: unknown, symbol: boolean | string = false):
 
 	if (num > 1_000) {
 		return symbol
-			? `${currencyMark}${Number(num.toFixed(0)).toLocaleString()}`
-			: `${normalMark}${Number(num.toFixed(0)).toLocaleString()}`
+			? `${currencyMark}${Number(num.toFixed(0)).toLocaleString('en-US')}`
+			: `${normalMark}${Number(num.toFixed(0)).toLocaleString('en-US')}`
 	}
 
 	if (symbol) {
-		return `${currencyMark}${num.toLocaleString(undefined, {
+		return `${currencyMark}${num.toLocaleString('en-US', {
 			maximumFractionDigits: num > 0.1 ? 2 : num > 0.01 ? 3 : num > 0.0001 ? 4 : 5
 		})}`
 	}
 
-	return `${normalMark}${num.toLocaleString(undefined, {
+	return `${normalMark}${num.toLocaleString('en-US', {
 		maximumFractionDigits: num > 0.1 ? 2 : num > 0.01 ? 3 : num > 0.0001 ? 4 : 5
 	})}`
 }
@@ -675,12 +675,9 @@ export function formatValue(value: unknown, formatType: string = 'auto'): string
 		}
 	}
 }
-export const getAnnualizedRatio = (numerator?: number | null, denominator?: number | null) => {
-	if (numerator == null || denominator == null) {
+export const getMarketCapToAnnualizedMetricRatio = (marketCap?: number | null, annualizedMetric?: number | null) => {
+	if (marketCap == null || annualizedMetric == null || annualizedMetric === 0) {
 		return null
 	}
-	if (denominator === 0) {
-		return null
-	}
-	return Number((numerator / (denominator * 12)).toFixed(2))
+	return Number((marketCap / annualizedMetric).toFixed(2))
 }

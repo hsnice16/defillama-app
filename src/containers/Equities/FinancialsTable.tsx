@@ -8,6 +8,7 @@ import { abbreviateNumber } from '~/utils'
 import { pushShallowQuery, readSingleQueryValue } from '~/utils/routerQuery'
 import type { IEquitiesStatementsResponse } from './api.types'
 import type { IEquitiesStatementTableRow } from './types'
+import { formatEquitiesDate } from './utils'
 
 const STATEMENT_OPTIONS = ['Income Statement', 'Balance Sheet', 'Cash Flow'] as const
 const PERIOD_OPTIONS = ['Quarterly', 'Annual'] as const
@@ -65,41 +66,53 @@ function buildStatementRows(
 	const section = statements[statementSectionMap[statementType]]
 	const periodData = section[periodKeyMap[periodType]]
 	const childrenMeta = section.children[periodKeyMap[periodType]]
+	const rows: IEquitiesStatementTableRow[] = []
 
-	return section.labels.map((label, rowIndex) => {
+	for (let rowIndex = 0; rowIndex < section.labels.length; rowIndex++) {
+		const label = section.labels[rowIndex]
 		const childLabels = childrenMeta[label]?.labels ?? []
 		const childValues = periodData.children[label]?.values ?? []
+		let subRows: IEquitiesStatementTableRow[] | undefined
 
-		return {
+		if (childLabels.length > 0) {
+			subRows = []
+			for (let childIndex = 0; childIndex < childLabels.length; childIndex++) {
+				const childLabel = childLabels[childIndex]
+				subRows.push({
+					id: `${label}-${childLabel}`,
+					label: childLabel,
+					values: childValues[childIndex] ?? [],
+					depth: 1
+				})
+			}
+		}
+
+		rows.push({
 			id: label,
 			label,
 			values: periodData.values[rowIndex] ?? [],
 			depth: 0,
-			subRows:
-				childLabels.length > 0
-					? childLabels.map((childLabel, childIndex) => ({
-							id: `${label}-${childLabel}`,
-							label: childLabel,
-							values: childValues[childIndex] ?? [],
-							depth: 1
-						}))
-					: undefined
-		}
+			subRows
+		})
+	}
+
+	return rows
+}
+
+export function getStatementHeaderIndexes(periodEnding: string[]): number[] {
+	const indexes: number[] = []
+	for (let index = 0; index < periodEnding.length; index++) {
+		indexes.push(index)
+	}
+	return indexes.sort((a, b) => {
+		const aTime = new Date(`${periodEnding[a] ?? ''}T00:00:00Z`).getTime()
+		const bTime = new Date(`${periodEnding[b] ?? ''}T00:00:00Z`).getTime()
+		return bTime - aTime
 	})
 }
 
-function getHeaderIndexes(periods: string[], periodEnding: string[]): number[] {
-	return periods
-		.map((_, index) => index)
-		.sort((a, b) => {
-			const aTime = new Date(`${periodEnding[a] ?? ''}T00:00:00Z`).getTime()
-			const bTime = new Date(`${periodEnding[b] ?? ''}T00:00:00Z`).getTime()
-			return bTime - aTime
-		})
-}
-
-function formatStatementPeriodLabel(period: string): string {
-	return period.replaceAll('-', ' ')
+function formatStatementPeriodLabel(periodEnding: string): string {
+	return formatEquitiesDate(periodEnding)
 }
 
 function flattenStatementRows(rows: IEquitiesStatementTableRow[]): IEquitiesStatementTableRow[] {
@@ -205,10 +218,7 @@ export function EquitiesFinancialsTable({ statements }: { statements: IEquitiesS
 		() => buildStatementRows(statements, statementType, periodType),
 		[statements, statementType, periodType]
 	)
-	const headerIndexes = useMemo(
-		() => getHeaderIndexes(periodData.periods, periodData.periodEnding),
-		[periodData.periodEnding, periodData.periods]
-	)
+	const headerIndexes = useMemo(() => getStatementHeaderIndexes(periodData.periodEnding), [periodData.periodEnding])
 	const hasAnyBreakdownRows = rows.some((row) => (row.subRows?.length ?? 0) > 0)
 	const setStatementType = (value: StatementOption) => {
 		void pushShallowQuery(router, {
@@ -221,12 +231,19 @@ export function EquitiesFinancialsTable({ statements }: { statements: IEquitiesS
 		})
 	}
 	const prepareCsv = () => {
-		const headers = ['Name', ...headerIndexes.map((index) => formatStatementPeriodLabel(periodData.periods[index]))]
+		const headers = ['Name']
+		for (const index of headerIndexes) {
+			headers.push(formatStatementPeriodLabel(periodData.periodEnding[index]))
+		}
 		const flattenedRows = flattenStatementRows(rows)
-		const csvRows = flattenedRows.map((row) => [
-			row.depth > 0 ? `  ${row.label}` : row.label,
-			...headerIndexes.map((index) => row.values[index] ?? '')
-		])
+		const csvRows: Array<Array<string | number>> = []
+		for (const row of flattenedRows) {
+			const csvRow: Array<string | number> = [row.depth > 0 ? `  ${row.label}` : row.label]
+			for (const index of headerIndexes) {
+				csvRow.push(row.values[index] ?? '')
+			}
+			csvRows.push(csvRow)
+		}
 
 		return {
 			filename: `equities-${statementType.toLowerCase().replaceAll(' ', '-')}-${periodType.toLowerCase()}`,
@@ -288,12 +305,12 @@ export function EquitiesFinancialsTable({ statements }: { statements: IEquitiesS
 
 								return (
 									<th
-										key={`${statementType}-${periodType}-${periodData.periods[index]}`}
+										key={`${statementType}-${periodType}-${periodData.periodEnding[index]}`}
 										className="min-w-[132px] overflow-hidden border border-black/10 bg-(--app-bg) p-2 text-left font-semibold text-ellipsis whitespace-nowrap dark:border-white/10"
 									>
 										<Tooltip content={tooltipContent}>
 											<span className="underline decoration-dotted underline-offset-3">
-												{formatStatementPeriodLabel(periodData.periods[index])}
+												{formatStatementPeriodLabel(periodData.periodEnding[index])}
 											</span>
 										</Tooltip>
 									</th>

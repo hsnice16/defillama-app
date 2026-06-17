@@ -508,6 +508,8 @@ function useChains() {
 		queryKey: ['pro-dashboard', 'chains'],
 		queryFn: async () => {
 			const data = await fetchChainsList()
+			// TODO(chain-normalizer): this still normalizes /chains metadata for ProDashboard.
+			// Prefer v2/app metadata display names before removing alias support.
 			const transformedData = data.map((chain) => ({
 				...chain,
 				name: toDisplayName(chain.name)
@@ -529,6 +531,8 @@ export function useProtocolsAndChains() {
 		queryFn: async () => {
 			const [protocolsData, chainsData] = await Promise.all([fetchProtocols(), fetchChainsList()])
 
+			// TODO(chain-normalizer): this still normalizes /chains metadata for ProDashboard.
+			// Prefer v2/app metadata display names before removing alias support.
 			const transformedChains = chainsData.map((chain) => ({
 				...chain,
 				name: toDisplayName(chain.name)

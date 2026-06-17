@@ -92,6 +92,8 @@ export function useYieldsTable({
 
 		const selectedProtocols = filters.protocols?.map((protocol) => protocol.toLowerCase()) ?? EMPTY_PROTOCOLS
 
+		// TODO(chain-normalizer): Yields rows and saved ProDashboard filters can use
+		// different chain naming. Remove after this dataset stores v2 display names.
 		const selectedChainsSet =
 			filters.chains && filters.chains.length > 0 ? new Set(filters.chains.map(toInternalSlug)) : null
 

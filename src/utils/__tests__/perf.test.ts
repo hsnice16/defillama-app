@@ -146,12 +146,15 @@ describe('withPerformanceLogging', () => {
 		vi.stubGlobal('fetch', fetchMock)
 		const { createRoutePhaseTimer } = await import('../perf')
 		const { telemetryTest, withStaticRouteTelemetry } = await import('../telemetry')
+		const { addApiRoutePhase } = await import('../../server/api/phaseTelemetry')
 
 		try {
 			await withStaticRouteTelemetry('phase-route', async () => {
 				const timer = createRoutePhaseTimer()
 				const stopTotal = timer.start('total')
 				await timer.time('async_phase', async () => 'ok')
+				addApiRoutePhase('shared_helper_phase', 12)
+				addApiRoutePhase('bad_helper_phase', Number.NaN)
 				stopTotal()
 				timer.record()
 				return { props: { ok: true } }
@@ -163,8 +166,10 @@ describe('withPerformanceLogging', () => {
 			const route = events.find((event) => event.type === 'route_execution' && event.route === 'phase-route')
 			expect(route?.attributes?.route_phases_ms).toMatchObject({
 				async_phase: expect.any(Number),
+				shared_helper_phase: 12,
 				total: expect.any(Number)
 			})
+			expect(route?.attributes?.route_phases_ms?.bad_helper_phase).toBeUndefined()
 		} finally {
 			telemetryTest.reset()
 		}

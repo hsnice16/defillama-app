@@ -27,6 +27,7 @@ import { ArticleEmbedBlock } from './ArticleEmbedBlock'
 import { ArticleImageBanner } from './ArticleImageBanner'
 import { ArticleImageBannerHorizontal } from './ArticleImageBannerHorizontal'
 import { ArticleImageBlock } from './ArticleImageBlock'
+import { ArticlePageAssets } from './ArticlePageAssets'
 import { ArticlePeoplePanelBlock } from './ArticlePeoplePanelBlock'
 import { ArticleQAAnswer, ArticleQABlock, ArticleQAQuestion } from './ArticleQABlock'
 import { EntityPreviewLink } from './EntityPreviewLink'
@@ -1044,6 +1045,12 @@ export function ArticleRenderer({
 					</div>
 				) : null}
 
+				{article.pageAssets && article.pageAssets.length > 0 ? (
+					<div className="pb-2 lg:hidden">
+						<ArticlePageAssets pageAssets={article.pageAssets} />
+					</div>
+				) : null}
+
 				<div ref={sentinelRef} aria-hidden className="h-0 w-full" />
 
 				<div className="article-prose [overflow-wrap:anywhere] break-words">
@@ -1072,6 +1079,11 @@ export function ArticleRenderer({
 						{toc.length > 1 ? (
 							<div className="pr-2">
 								<ArticleToc toc={toc} compactMode={pastHeader} />
+							</div>
+						) : null}
+						{article.pageAssets && article.pageAssets.length > 0 ? (
+							<div className="pr-2">
+								<ArticlePageAssets pageAssets={article.pageAssets} />
 							</div>
 						) : null}
 						<div className="pr-2">

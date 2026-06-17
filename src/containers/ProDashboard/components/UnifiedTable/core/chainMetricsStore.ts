@@ -1,4 +1,4 @@
-import type { ChainMetrics } from '~/server/unifiedTable/protocols'
+import type { ChainMetrics } from '~/containers/ProDashboard/server/unifiedTable/protocols'
 import { toInternalSlug } from '~/utils/chainNormalizer'
 
 let currentChainMetrics: Record<string, ChainMetrics> = {}
@@ -15,6 +15,8 @@ const getChainMetrics = (): Record<string, ChainMetrics> => {
 }
 
 export const getChainMetricsByName = (chainName: string): ChainMetrics | null => {
+	// TODO(chain-normalizer): legacy unified-table filters can still look up
+	// display names or aliases. Remove after chain metrics are keyed by v2 display names.
 	const normalizedSlug = toInternalSlug(chainName)
 	return currentChainMetrics[normalizedSlug] ?? null
 }

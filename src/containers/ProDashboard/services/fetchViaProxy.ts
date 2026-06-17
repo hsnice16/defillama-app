@@ -1,5 +1,5 @@
 import { fetchWithPoolingOnServer } from '~/utils/http-client'
-const PROXY_URL = '/api/private/dashboard/fetch'
+const PROXY_URL = '/api/private/pro-dashboard/fetch'
 
 async function proxyFetch<T>(type: string, params: Record<string, any>, authToken: string): Promise<T> {
 	const url = `${PROXY_URL}?type=${encodeURIComponent(type)}&params=${encodeURIComponent(JSON.stringify(params))}`
@@ -85,10 +85,14 @@ export async function fetchEquitiesCompaniesViaProxy(authToken: string): Promise
 	return proxyFetch<any>('equitiesCompanies', {}, authToken)
 }
 
-export async function fetchEquitiesStatementsViaProxy(ticker: string, authToken: string): Promise<any> {
-	return proxyFetch<any>('equitiesStatements', { ticker }, authToken)
+export async function fetchEquitiesStatementsViaProxy(
+	ticker: string,
+	country: string,
+	authToken: string
+): Promise<any> {
+	return proxyFetch<any>('equitiesStatements', { ticker, country }, authToken)
 }
 
-export async function fetchEquitiesFilingsViaProxy(ticker: string, authToken: string): Promise<any> {
-	return proxyFetch<any>('equitiesFilings', { ticker }, authToken)
+export async function fetchEquitiesFilingsViaProxy(ticker: string, country: string, authToken: string): Promise<any> {
+	return proxyFetch<any>('equitiesFilings', { ticker, country }, authToken)
 }

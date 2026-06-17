@@ -87,7 +87,7 @@ export function AppMetadataProvider({
 		queryFn: async () => {
 			const fetchPfPs = async (): Promise<{ pf: string[]; ps: string[] }> => {
 				try {
-					const res = await fetch('/api/public/dashboard/pf-ps-protocols')
+					const res = await fetch('/api/public/pro-dashboard/pf-ps-protocols')
 					if (!res.ok) return { pf: [], ps: [] }
 					return res.json()
 				} catch {
@@ -188,6 +188,8 @@ export function AppMetadataProvider({
 				}
 				chainsByName.set(name, record)
 				chainsByName.set(name.toLowerCase(), record)
+				// TODO(chain-normalizer): legacy saved chart-builder configs can
+				// reference old display aliases. Remove after configs are migrated.
 				const aliases = getDisplayAliases(name)
 				for (const alias of aliases) {
 					chainsByName.set(alias, record)

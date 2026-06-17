@@ -239,7 +239,7 @@ export function prepareTableCsv<T>({ instance, filename }: { instance: Table<T>;
 	rows: Array<Array<CsvCell>>
 } {
 	const columns = instance.getVisibleLeafColumns().filter((column) => !column.columnDef.meta?.hidden)
-	const tableRows = instance.getRowModel().rows
+	const tableRows = instance.getPrePaginationRowModel().rows
 	if (columns.length === 0) return { filename, rows: [] }
 
 	const headers = columns.map((column) => {

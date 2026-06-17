@@ -1,8 +1,15 @@
 import * as Ariakit from '@ariakit/react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import { EDITORIAL_TAGS, isEditorialTagSlug } from '../editorialTags'
-import type { ArticleCollaborator, ArticleImage, ArticleSection, LocalArticleDocument } from '../types'
+import type {
+	ArticleCollaborator,
+	ArticleGuestAuthor,
+	ArticleImage,
+	ArticlePageAsset,
+	ArticleSection,
+	LocalArticleDocument
+} from '../types'
 import { ARTICLE_SECTIONS, ARTICLE_SECTION_LABELS, ARTICLE_SECTION_SLUGS } from '../types'
 import { ImageUploadButton } from '../upload/ImageUploadButton'
 import { PdfUploadButton } from '../upload/PdfUploadButton'
@@ -10,6 +17,7 @@ import { Icon } from './ArticleEditorIcon'
 import type { ArticleFieldUpdater } from './ArticleEditorTypes'
 import { formatArticleDate, fromDateTimeLocal, slugFromTitle, toDateTimeLocal } from './ArticleEditorUtils'
 import { MetaFieldHint, MetaSection, MetaSwitch } from './ArticleMetaFields'
+import { ArticlePageAssetPicker } from './ArticlePageAssetPicker'
 
 type DialogStore = ReturnType<typeof Ariakit.useDialogStore>
 
@@ -91,6 +99,40 @@ export function ArticleMetaDialog({
 	}, [dialogOpen, article.goLiveAt, articleIsScheduled])
 
 	const minScheduleLocal = toDateTimeLocal(new Date().toISOString())
+
+	const [guestRows, setGuestRows] = useState<ArticleGuestAuthor[]>(() => article.guestAuthors ?? [])
+	const savedGuestAuthorsRef = useRef(article.guestAuthors)
+	savedGuestAuthorsRef.current = article.guestAuthors
+	useEffect(() => {
+		if (dialogOpen) setGuestRows(savedGuestAuthorsRef.current ?? [])
+	}, [dialogOpen])
+	const commitGuestAuthors = (rows: ArticleGuestAuthor[]) =>
+		updateArticle(
+			'guestAuthors',
+			rows.filter((guest) => guest.name.trim().length > 0)
+		)
+	const addGuestAuthor = () => setGuestRows((rows) => [...rows, { name: '', type: 'Person' }])
+	const updateGuestAuthor = (index: number, patch: Partial<ArticleGuestAuthor>) => {
+		const next = guestRows.map((guest, i) => (i === index ? { ...guest, ...patch } : guest))
+		setGuestRows(next)
+		commitGuestAuthors(next)
+	}
+	const removeGuestAuthor = (index: number) => {
+		const next = guestRows.filter((_, i) => i !== index)
+		setGuestRows(next)
+		commitGuestAuthors(next)
+	}
+
+	const [assetRows, setAssetRows] = useState<ArticlePageAsset[]>(() => article.pageAssets ?? [])
+	const savedPageAssetsRef = useRef(article.pageAssets)
+	savedPageAssetsRef.current = article.pageAssets
+	useEffect(() => {
+		if (dialogOpen) setAssetRows(savedPageAssetsRef.current ?? [])
+	}, [dialogOpen])
+	const updatePageAssets = (rows: ArticlePageAsset[]) => {
+		setAssetRows(rows)
+		updateArticle('pageAssets', rows)
+	}
 
 	return (
 		<Ariakit.Dialog
@@ -640,6 +682,95 @@ export function ArticleMetaDialog({
 					) : isCollaborator ? (
 						<span className="text-[11px] text-(--text-tertiary)">Only the owner can manage authors.</span>
 					) : null}
+				</MetaSection>
+
+				<MetaSection title="Guest co-authors">
+					<p className="-mt-1 text-[11px] leading-snug text-(--text-tertiary)">
+						Credit external contributors without a DefiLlama account. Added to SEO and structured data only — never
+						shown on the article page.
+					</p>
+					{guestRows.length > 0 ? (
+						<div className="grid gap-2">
+							{guestRows.map((guest, index) => (
+								<div
+									key={index}
+									className="group flex items-start gap-2.5 rounded-lg border border-(--cards-border) bg-(--app-bg) px-2.5 py-2 transition-colors focus-within:border-(--link-text)/50 hover:border-(--text-tertiary)/40"
+								>
+									<div
+										role="group"
+										aria-label="Co-author type"
+										className="mt-0.5 inline-flex shrink-0 rounded-full border border-(--cards-border) bg-(--cards-bg) p-0.5"
+									>
+										{(['Person', 'Organization'] as const).map((type) => {
+											const active = guest.type === type
+											return (
+												<button
+													key={type}
+													type="button"
+													onClick={() => updateGuestAuthor(index, { type })}
+													aria-pressed={active}
+													title={type}
+													className={`grid size-6 place-items-center rounded-full transition-colors ${
+														active
+															? 'bg-(--link-button) text-(--link-text)'
+															: 'text-(--text-tertiary) hover:text-(--text-secondary)'
+													}`}
+												>
+													<Icon name={type === 'Organization' ? 'building' : 'user'} className="size-3.5" />
+												</button>
+											)
+										})}
+									</div>
+
+									<div className="min-w-0 flex-1">
+										<div className="flex items-center gap-2">
+											<input
+												value={guest.name}
+												onChange={(event) => updateGuestAuthor(index, { name: event.target.value })}
+												placeholder="Full name"
+												aria-label="Co-author name"
+												className="min-w-0 flex-1 bg-transparent text-sm font-medium text-(--text-primary) placeholder:font-normal placeholder:text-(--text-tertiary) focus:outline-none"
+											/>
+											<button
+												type="button"
+												onClick={() => removeGuestAuthor(index)}
+												aria-label="Remove co-author"
+												className="grid size-6 shrink-0 place-items-center rounded-md text-(--text-tertiary) opacity-0 transition group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-(--link-hover-bg) hover:text-red-500 focus-visible:opacity-100"
+											>
+												<Icon name="x" className="size-3.5" />
+											</button>
+										</div>
+										<div className="mt-0.5 flex items-center gap-1.5">
+											<Icon
+												name="link"
+												className={`size-3 shrink-0 ${guest.url ? 'text-(--text-secondary)' : 'text-(--text-tertiary)'}`}
+											/>
+											<input
+												type="url"
+												value={guest.url ?? ''}
+												onChange={(event) => updateGuestAuthor(index, { url: event.target.value })}
+												placeholder="Link (optional)"
+												aria-label="Co-author link"
+												className="min-w-0 flex-1 bg-transparent text-xs text-(--text-secondary) placeholder:text-(--text-tertiary) focus:outline-none"
+											/>
+										</div>
+									</div>
+								</div>
+							))}
+						</div>
+					) : null}
+					<button
+						type="button"
+						onClick={addGuestAuthor}
+						className="inline-flex w-fit items-center gap-1.5 rounded-md border border-dashed border-(--cards-border) px-3 py-1.5 text-xs font-medium text-(--text-secondary) transition-colors hover:border-(--link-text)/50 hover:bg-(--link-button) hover:text-(--link-text)"
+					>
+						<Icon name="plus" className="size-3.5" />
+						Add co-author
+					</button>
+				</MetaSection>
+
+				<MetaSection title="Assets on this page">
+					<ArticlePageAssetPicker value={assetRows} onChange={updatePageAssets} />
 				</MetaSection>
 			</div>
 

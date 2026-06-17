@@ -1,7 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
-import { useMemo, useState } from 'react'
-import { fetchEquitiesCompanies } from '~/containers/Equities/api'
+import { useContext, useMemo, useState } from 'react'
 import type { IEquitiesCompanyApiItem } from '~/containers/Equities/api.types'
+import { buildEquityTickerCountrySlug } from '~/containers/Equities/utils'
+import { ProxyAuthTokenContext } from '~/containers/ProDashboard/queries'
+import { fetchEquitiesCompaniesViaProxy } from '~/containers/ProDashboard/services/fetchViaProxy'
 import type { CexAnalyticsMetric, CexAnalyticsView, ProtocolsTableConfig } from '~/containers/ProDashboard/types'
 import { useAuthContext } from '~/containers/Subscription/auth'
 import { getItemIconUrl } from '../../../../utils'
@@ -312,18 +314,28 @@ export function SimpleTableConfig({
 	isEditing = false
 }: SimpleTableConfigProps) {
 	const { hasActiveSubscription } = useAuthContext()
+	const authToken = useContext(ProxyAuthTokenContext)
 	const { data: equitiesCompaniesData, isLoading: equitiesCompaniesLoading } = useQuery({
 		queryKey: ['pro-dashboard', 'equities-companies-table'],
-		queryFn: fetchEquitiesCompanies,
+		queryFn: () => fetchEquitiesCompaniesViaProxy(authToken!),
 		staleTime: 5 * 60 * 1000,
 		refetchOnWindowFocus: false,
-		enabled: selectedTableType === 'equities-financials' || selectedTableType === 'equities-filings'
+		enabled:
+			Boolean(authToken) && (selectedTableType === 'equities-financials' || selectedTableType === 'equities-filings')
 	})
 	const equitiesTickerOptions = useMemo(() => {
 		if (!equitiesCompaniesData) return []
-		return (equitiesCompaniesData as IEquitiesCompanyApiItem[])
-			.sort((a, b) => b.marketCap - a.marketCap)
-			.map((item) => ({ value: item.ticker, label: `${item.ticker} — ${item.name}` }))
+		const sortedCompanies = [...(equitiesCompaniesData as IEquitiesCompanyApiItem[])].sort(
+			(a, b) => b.marketCap - a.marketCap
+		)
+		const options: Array<{ value: string; label: string }> = []
+		for (const item of sortedCompanies) {
+			options.push({
+				value: buildEquityTickerCountrySlug(item.ticker, item.country),
+				label: `${item.ticker}:${item.country} — ${item.name}`
+			})
+		}
+		return options
 	}, [equitiesCompaniesData])
 	const [tokenSearchInput, setTokenSearchInput] = useState('')
 	const { data: tokenOptionsData, isLoading: isLoadingTokens } = useTokenSearch(tokenSearchInput)

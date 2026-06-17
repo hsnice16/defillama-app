@@ -10,7 +10,8 @@ interface TokenOption {
 export function useTokenSearch(searchQuery: string) {
 	return useQuery<TokenOption[]>({
 		queryKey: ['pro-dashboard', 'token-search', searchQuery],
-		queryFn: async () => fetchJson(`/api/dynamic/tokens/search?query=${encodeURIComponent(searchQuery || '')}`),
+		queryFn: async () =>
+			fetchJson(`/api/dynamic/pro-dashboard/tokens/search?query=${encodeURIComponent(searchQuery || '')}`),
 		staleTime: 5 * 60 * 1000,
 		placeholderData: []
 	})

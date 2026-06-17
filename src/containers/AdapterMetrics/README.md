@@ -32,6 +32,18 @@ For a broader route-to-container map, see `src/containers/README.md`.
 - `telemetry.ts`: adapter route telemetry helpers.
 - `types.ts` and `api.types.ts`: UI/read-model types and upstream DTO types.
 
+## ProDashboard Chart-Builder Breakdowns
+
+ProDashboard owns the adapter-backed chart-builder breakdown routes. AdapterMetrics keeps the normal page-data,
+ranking, chart, and upstream adapter fetch flows.
+
+- `src/containers/ProDashboard/server/chartBuilder/adapterMetrics/routes.ts`: route definitions and cache keys.
+- `src/containers/ProDashboard/server/chartBuilder/adapterMetrics/breakdowns/protocolSeries.ts`: top protocols over time.
+- `src/containers/ProDashboard/server/chartBuilder/adapterMetrics/breakdowns/chainSeries.ts`: top chains over time.
+- `src/containers/ProDashboard/server/chartBuilder/adapterMetrics/breakdowns/config.ts`: upstream Dimensions API endpoint/data-type mapping.
+
+In this folder, `Dimensions` means the upstream Dimensions API. File names should describe the chart output axis (`protocolSeries`, `chainSeries`) rather than using `dimensions` as the route concept.
+
 ## Data Flows
 
 Selected-chain or all-chain protocol table:
@@ -80,8 +92,10 @@ Fee/revenue has extra terminology risk:
 - App Fees and App Revenue are app-on-chain aggregation.
 - `/fees/chains` and `/revenue/chains` are not the same concept as `/fees/chain/[chain]` and `/revenue/chain/[chain]`.
 - Chain-native fee/revenue ranking semantics are described in `src/metrics/feesRevenue.ts`.
+- Bribes/token-tax fee-extra config and pure helpers live in `src/metrics/feeExtras.ts`.
 - Public chart validation helpers for that migrated slice live in `src/metrics/routeSemantics.ts`.
 - REV is chain fees plus MEV tips and has its own builder.
+- P/F and P/S ratios use `annualized1y` as the denominator. Do not derive those ratios from 30-day totals. Parent rows stay null when a contributing child is missing the annualized denominator.
 
 ## Builder Responsibilities
 
@@ -123,18 +137,21 @@ Chain-native fee/revenue ranking pages expose controls but intentionally keep ch
 Relevant tests today:
 
 - `__tests__/chainsPageData.test.ts`: chain ranking builders, metadata flag disambiguation, and selected builder behavior.
+- `__tests__/chainRouteWiring.test.ts`: route module to builder adapter/data-type wiring.
+- `__tests__/ChainsByAdapter.test.tsx` and `__tests__/ChainsByAdapterChart.test.tsx`: chain ranking table/chart behavior, including fee extras.
 - `__tests__/feeRevenueSemantics.test.ts`: fee/revenue route semantics and `public/pages.json` alignment.
+- `__tests__/metricPeriods.test.ts`: nullable period merging and change derivation.
 - `__tests__/utils.test.ts`: local helper and chart/read-model utilities.
 - `__tests__/api.test.ts`: adapter API fetch behavior.
-- `__tests__/metricPeriods.test.ts`: period field merging.
 - `__tests__/telemetry.test.ts`: telemetry helpers.
 
 Focused commands:
 
 ```bash
-bun run test src/containers/AdapterMetrics/__tests__/chainsPageData.test.ts
+bun run test src/containers/AdapterMetrics/__tests__/chainsPageData.test.ts src/containers/AdapterMetrics/__tests__/chainRouteWiring.test.ts
+bun run test src/containers/AdapterMetrics/__tests__/ChainsByAdapter.test.tsx src/containers/AdapterMetrics/__tests__/ChainsByAdapterChart.test.tsx
 bun run test src/containers/AdapterMetrics/__tests__/feeRevenueSemantics.test.ts
-bun run test src/containers/AdapterMetrics/__tests__/utils.test.ts
+bun run test src/containers/AdapterMetrics/__tests__/metricPeriods.test.ts src/containers/AdapterMetrics/__tests__/utils.test.ts
 ```
 
 For source changes, follow the repo root verification instructions.

@@ -1,13 +1,27 @@
 {
 	"currentPrice": { "label": "Price", "description": "Current share price" },
 	"marketCap": { "label": "Market Cap", "description": "Total market value of all outstanding shares" },
+	"circulatingMarketCap": {
+		"label": "Circ. Market Cap",
+		"description": "Market value based on circulating shares"
+	},
+	"enterpriseValue": {
+		"label": "Enterprise Value",
+		"description": "Market cap plus debt, minority interest and preferred shares, minus cash and equivalents"
+	},
 	"volume": { "label": "Volume", "description": "Number of shares traded in the last session" },
 	"priceChangePercentage1d": { "label": "1D Price Change", "description": "Price change over the last trading day" },
 	"priceChangePercentage7d": { "label": "7D Price Change", "description": "Price change over the last 7 days" },
 	"priceChangePercentage1m": { "label": "1M Price Change", "description": "Price change over the last 30 days" },
+	"priceChange1d": { "label": "1D Price Change", "description": "Absolute share price change over the last trading day" },
+	"marketCapChange1d": { "label": "1D Market Cap Change", "description": "Absolute market cap change over the last trading day" },
 	"trailingPE": {
 		"label": "P/E",
 		"description": "Price-to-Earnings ratio — current share price divided by earnings per share over the trailing 12 months"
+	},
+	"priceToRevenue": {
+		"label": "P/S",
+		"description": "Price-to-Sales ratio — market cap divided by trailing twelve month revenue"
 	},
 	"dividendYield": {
 		"label": "Dividend Yield",
@@ -21,12 +35,48 @@
 		"label": "Op. Margin",
 		"description": "Operating income as a percentage of revenue, measuring core business profitability"
 	},
+	"operatingProfitMarginTTM": {
+		"label": "Op. Margin (TTM)",
+		"description": "Operating income as a percentage of revenue over the trailing twelve months"
+	},
+	"enterpriseValueToEbitda": {
+		"label": "EV/EBITDA",
+		"description": "Enterprise value divided by EBITDA over the trailing twelve months"
+	},
+	"holdersYield": {
+		"label": "Holders Yield",
+		"description": "Shareholder yield from dividends and buybacks as a percentage of market cap"
+	},
 	"revenueTTM": { "label": "Revenue (TTM)", "description": "Total revenue over the trailing twelve months" },
 	"grossProfitTTM": {
 		"label": "Gross Profit (TTM)",
 		"description": "Revenue minus cost of goods sold over the trailing twelve months"
 	},
 	"earningsTTM": { "label": "Earnings (TTM)", "description": "Net income over the trailing twelve months" },
+	"holderEarningsTTM": {
+		"label": "Holder Earnings (TTM)",
+		"description": "Earnings attributable to common shareholders over the trailing twelve months"
+	},
+	"dividendsTTM": {
+		"label": "Dividends (TTM)",
+		"description": "Cash dividends paid over the trailing twelve months"
+	},
+	"stockRepurchaseTTM": {
+		"label": "Buybacks (TTM)",
+		"description": "Stock repurchases over the trailing twelve months"
+	},
+	"stockIssuanceTTM": {
+		"label": "Stock Issuance (TTM)",
+		"description": "Value of stock issuance over the trailing twelve months"
+	},
+	"stockBasedCompensationTTM": {
+		"label": "Stock Comp. (TTM)",
+		"description": "Stock-based compensation over the trailing twelve months"
+	},
+	"cashAndCashEquivalents": {
+		"label": "Cash",
+		"description": "Cash and cash equivalents on the balance sheet"
+	},
 	"totalAssets": {
 		"label": "Total Assets",
 		"description": "Sum of all current and non-current assets on the balance sheet"
@@ -35,6 +85,14 @@
 		"label": "Total Liabilities",
 		"description": "Sum of all current and long-term obligations on the balance sheet"
 	},
+	"totalShareholdersEquity": {
+		"label": "Shareholders Equity",
+		"description": "Total shareholders equity on the balance sheet"
+	},
+	"totalDebt": { "label": "Total Debt", "description": "Total debt on the balance sheet" },
+	"circulatingSupply": { "label": "Circ. Shares", "description": "Current circulating share count" },
+	"totalSupply": { "label": "Total Shares", "description": "Total share count" },
+	"employeeCount": { "label": "Employees", "description": "Reported employee count" },
 	"fiftyTwoWeekHigh": { "label": "52W High", "description": "Highest share price in the past 52 weeks" },
 	"fiftyTwoWeekLow": { "label": "52W Low", "description": "Lowest share price in the past 52 weeks" },
 	"ebitdaTTM": {

@@ -46,7 +46,8 @@ export function buildEvmChainsSet(chainData: Array<{ name: string; chainId: numb
 	for (const chain of chainData) {
 		if (chain.chainId !== null) {
 			evmChains.add(chain.name)
-			// Add the normalized display name (handles xDai -> Gnosis, Binance -> BSC, etc.)
+			// TODO(chain-normalizer): /chains can still return legacy aliases
+			// like xDai/Binance. Remove after callers use v2 display-name chain metadata.
 			const displayName = toDisplayName(chain.name)
 			if (displayName !== chain.name) {
 				evmChains.add(displayName)
@@ -57,6 +58,7 @@ export function buildEvmChainsSet(chainData: Array<{ name: string; chainId: numb
 	}
 
 	// Always add the supplementary EVM chains (they may not exist in API or have null chainId)
+	// TODO(chain-normalizer): keep yields-only legacy variants here until yields metadata uses display names.
 	for (const chain of EVM_CHAINS_WITH_NULL_CHAINID) {
 		evmChains.add(chain)
 		evmChains.add(chain.toLowerCase())

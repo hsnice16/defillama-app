@@ -19,6 +19,9 @@ const CHAIN_NATIVE_TOKEN_FALLBACKS: Record<string, IProtocolLlamaswapChain[]> = 
 	]
 }
 
+// TODO(chain-normalizer): this bridges protocol metadata, CoinGecko platform ids,
+// and LlamaSwap chain ids. Replace with an explicit shared chain-key map when
+// those datasets expose one display-name/native key.
 const LLAMASWAP_SUPPORTED_PROTOCOL_CHAIN_SET = buildChainMatchSet(
 	LLAMASWAP_CHAINS.flatMap(({ displayName, llamaswap, gecko, geckoAliases = [] }) => [
 		displayName,

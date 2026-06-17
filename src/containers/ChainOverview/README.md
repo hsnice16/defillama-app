@@ -84,11 +84,19 @@ Be careful with:
 
 Do not move TVL behavior into `src/metrics` without first inventorying the route families and adding characterization tests.
 
+## Bridged TVL Notes
+
+ChainOverview can show a Bridged TVL key metric card from current `/chain-assets/chains` totals. The historical Bridged TVL chart is different data: it depends on the precomputed backend `/chain-assets/chart/:chain-slug` route and is exposed from chain metadata `chainAssets`, even when the current totals fetch is missing or failed.
+
+The chart semantics are one millisecond timestamp point per day with `total`, plus `ownTokens` when `govtokens` is enabled. Non-USD denomination conversion uses the same millisecond timestamp for the combined value.
+
 ## Tests
 
 Relevant tests today:
 
 - `__tests__/queries.server.test.ts`
+- `__tests__/tvlChart.test.ts`
+- `__tests__/chartDataTransforms.test.ts`
 - `__tests__/chartMetricSemantics.test.tsx`
 - `__tests__/chain-chart-page.test.tsx`
 - `__tests__/KeyMetrics.test.tsx`
@@ -98,6 +106,7 @@ Focused commands:
 
 ```bash
 bun run test src/containers/ChainOverview/__tests__/queries.server.test.ts
+bun run test src/containers/ChainOverview/__tests__/tvlChart.test.ts src/containers/ChainOverview/__tests__/chartDataTransforms.test.ts
 bun run test src/containers/ChainOverview/__tests__/chartMetricSemantics.test.tsx
 bun run test src/containers/ChainOverview/__tests__/chain-chart-page.test.tsx src/containers/ChainOverview/__tests__/KeyMetrics.test.tsx
 ```
